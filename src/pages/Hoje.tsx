@@ -85,11 +85,12 @@ export function Hoje() {
   useEffect(() => {
     const dates = [];
     const today = new Date(selectedDate);
-    const dayOfWeek = today.getDay(); // 0 = Domingo, 6 = Sábado
+    const dayOfWeek = today.getDay(); // 0 = Domingo, 1 = Segunda, ..., 6 = Sábado
     
-    // Volta para o domingo da semana atual
+    // Volta para a segunda-feira da semana atual (se for domingo, volta 6 dias)
+    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
     const startDate = new Date(today);
-    startDate.setDate(today.getDate() - dayOfWeek);
+    startDate.setDate(today.getDate() + diffToMonday);
 
     for (let i = 0; i < 7; i++) {
       const date = new Date(startDate);
