@@ -17,6 +17,7 @@ import { supabase } from "@/lib/supabase";
 import { motion, AnimatePresence } from "motion/react";
 import { Modal } from "@/components/Modal";
 import { Button } from "@/components/Button";
+import { format } from "date-fns";
 
 type Habit = {
   id: string;
@@ -74,8 +75,8 @@ export function Habitos() {
 
       setHabits(habitsData || []);
 
-      const start = weekDays[0].toISOString().split('T')[0];
-      const end = weekDays[6].toISOString().split('T')[0];
+      const start = format(weekDays[0], 'yyyy-MM-dd');
+      const end = format(weekDays[6], 'yyyy-MM-dd');
 
       const { data: logsData } = await supabase
         .from('habit_logs')
@@ -94,51 +95,86 @@ export function Habitos() {
 
   const toggleHabitStatus = async (habitId: string, date: Date) => {
     if (!user) return;
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = format(date, 'yyyy-MM-dd');
+    console.log("Toggling habit", habitId, "on date", dateStr);
+    
     const existingLog = logs.find(l => l.habit_id === habitId && l.date === dateStr);
+    console.log("Existing log:", existingLog);
     
     let nextStatus: boolean | null = null;
     
     if (!existingLog) {
-      nextStatus = true;
+      nextStatus = true; // No log -> DONE
     } else if (existingLog.completed === true) {
-      nextStatus = false;
+      nextStatus = false; // DONE -> FAILED (X)
     } else {
-      nextStatus = null;
+      nextStatus = null; // FAILED (X) -> CLEAR (Delete)
     }
+
+    console.log("Next status will be:", nextStatus);
 
     try {
       if (nextStatus === null) {
-        await supabase
+        console.log("Deleting log for", habitId, "on", dateStr);
+        const { error } = await supabase
           .from('habit_logs')
           .delete()
           .eq('user_name', user.name)
           .eq('habit_id', habitId)
           .eq('date', dateStr);
         
+        if (error) throw error;
         setLogs(prev => prev.filter(l => !(l.habit_id === habitId && l.date === dateStr)));
       } else {
-        const { data: newLog } = await supabase
-          .from('habit_logs')
-          .upsert({
-            user_name: user.name,
-            habit_id: habitId,
-            date: dateStr,
-            completed: nextStatus,
-            value: 1
-          }, { onConflict: 'user_name,habit_id,date' })
-          .select()
-          .single();
+        console.log("Updating log for", habitId, "with completed=", nextStatus);
+        
+        // Use select/insert/update to avoid upsert 409 conflict
+        let logResult;
+        
+        if (existingLog) {
+          const { data, error } = await supabase
+            .from('habit_logs')
+            .update({
+              completed: nextStatus,
+              value: nextStatus ? 1 : 0
+            })
+            .eq('id', existingLog.id)
+            .select()
+            .maybeSingle();
+            
+          if (error) throw error;
+          logResult = data;
+        } else {
+          const { data, error } = await supabase
+            .from('habit_logs')
+            .insert({
+              user_name: user.name,
+              habit_id: habitId,
+              date: dateStr,
+              completed: nextStatus,
+              value: nextStatus ? 1 : 0
+            })
+            .select()
+            .maybeSingle();
+            
+          if (error) throw error;
+          logResult = data;
+        }
 
-        if (newLog) {
+        if (logResult) {
+          console.log("Update successful, updating local state");
           setLogs(prev => {
             const filtered = prev.filter(l => !(l.habit_id === habitId && l.date === dateStr));
-            return [...filtered, newLog];
+            return [...filtered, logResult];
           });
+        } else {
+          console.warn("Operation returned no data, refetching...");
+          fetchHabitsAndLogs();
         }
       }
     } catch (error) {
       console.error("Error toggling habit status:", error);
+      fetchHabitsAndLogs();
     }
   };
 
@@ -239,13 +275,15 @@ export function Habitos() {
                         <p className="text-[7px] md:text-[9px] text-text-muted font-bold uppercase tracking-[0.2em] flex items-center gap-2 mt-1 md:mt-1.5">
                            <span className="w-1 h-1 rounded-full bg-primary/20 group-hover:bg-primary/40 transition-colors" />
                            {habit.area || "Geral"}
+                           <span className="w-1 h-1 rounded-full bg-primary/20 group-hover:bg-primary/40 transition-colors" />
+                           <span className="text-primary">{habit.frequency_per_week}x/SEMANA</span>
                         </p>
                       </div>
                     </div>
                   </td>
                   
                   {weekDays.map((date, i) => {
-                    const dateStr = date.toISOString().split('T')[0];
+                    const dateStr = format(date, 'yyyy-MM-dd');
                     const log = logs.find(l => l.habit_id === habit.id && l.date === dateStr);
                     const isDone = log?.completed === true;
                     const isFailed = log?.completed === false;

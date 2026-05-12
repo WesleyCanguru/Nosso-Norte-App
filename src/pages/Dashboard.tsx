@@ -50,56 +50,158 @@ export function Dashboard() {
 
   const cycleInfo = getCycleProgress();
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayDate = new Date();
+  const todayStr = format(todayDate, 'yyyy-MM-dd');
+
+  const startOfWeekDate = new Date(todayDate);
+  const day = startOfWeekDate.getDay();
+  const diff = startOfWeekDate.getDate() - day + (day === 0 ? -6 : 1);
+  startOfWeekDate.setDate(diff);
+  const startOfWeekStr = format(startOfWeekDate, 'yyyy-MM-dd');
+
+  const endOfWeekDate = new Date(startOfWeekDate);
+  endOfWeekDate.setDate(startOfWeekDate.getDate() + 6);
+  const endOfWeekStr = format(endOfWeekDate, 'yyyy-MM-dd');
 
   useEffect(() => {
+    let isValid = true;
+    
+    const fetchDashboardData = async () => {
+      if (!user) return;
+      setLoading(true);
+      console.log("Fetching dashboard data for user:", user.name, "Cycle:", cycle?.id);
+      
+      try {
+        const { data: habits } = await supabase.from('habits').select('*').eq('user_name', user.name);
+        const { data: logs } = await supabase.from('habit_logs')
+          .select('*')
+          .eq('user_name', user.name)
+          .gte('date', startOfWeekStr)
+          .lte('date', endOfWeekStr);
+        const { data: dddTasks } = await supabase.from('tasks').select('*').eq('user_name', user.name).eq('completed', false);
+        
+        let outcomesData: any[] = [];
+        if (cycle) {
+          console.log("Fetching outcomes for cycle:", cycle.id);
+          const { data: goals, error: goalsError } = await supabase
+            .from('cycle_outcomes')
+            .select('*')
+            .eq('cycle_id', cycle.id)
+            .eq('user_name', user.name);
+          
+          if (goalsError) {
+            console.error("Error fetching outcomes:", goalsError);
+          } else {
+            outcomesData = goals || [];
+            console.log("Outcomes found:", outcomesData.length);
+          }
+        } else {
+          console.warn("No active cycle found for user, skipping outcomes fetch.");
+        }
+
+        if (!isValid) return;
+
+        const mappedHabits = habits?.map(h => {
+          const weeklyCompletions = logs?.filter(l => l.habit_id === h.id && l.completed === true).length || 0;
+          const isDoneToday = logs?.find(l => l.habit_id === h.id && l.date === todayStr && l.completed === true);
+          const isTheoreticallyDone = weeklyCompletions >= (h.frequency_per_week || 7);
+          return {
+            ...h,
+            done: !!isDoneToday || isTheoreticallyDone,
+            isTheoreticallyDone: !isDoneToday && isTheoreticallyDone
+          };
+        }) || [];
+
+        const totalHabits = mappedHabits.length;
+        const habitsDone = mappedHabits.filter(h => h.done).length;
+
+        setTodayHabits(mappedHabits);
+        setTasks(dddTasks || []);
+        setOutcomes(outcomesData);
+
+        setStats({
+          habitsDone,
+          totalHabits,
+          weeklyAdherence: 0,
+          activeTasks: dddTasks?.length || 0,
+          urgentTasks: dddTasks?.filter(t => t.type === 'tem_que').length || 0,
+          maxStreak: 0
+        });
+
+      } catch (error) {
+        if (!isValid) return;
+        console.error("Error fetching dashboard data:", error);
+      } finally {
+        if (isValid) setLoading(false);
+      }
+    };
+
     if (user) {
       fetchDashboardData();
     }
-  }, [user]);
 
-  const fetchDashboardData = async () => {
+    return () => {
+      isValid = false;
+    };
+  }, [user, cycle]);
+
+  const toggleHabitStatus = async (habitId: string) => {
     if (!user) return;
-    setLoading(true);
+    
+    const habit = todayHabits.find(h => h.id === habitId);
+    if (!habit || habit.isTheoreticallyDone) return;
+
+    const nextStatus = !habit.done;
+
     try {
-      const { data: habits } = await supabase.from('habits').select('*').eq('user_name', user.name);
-      const { data: logs } = await supabase.from('habit_logs').select('*').eq('user_name', user.name).eq('date', todayStr);
-      const { data: dddTasks } = await supabase.from('tasks').select('*').eq('user_name', user.name).eq('completed', false);
+      // Otimistic update
+      setTodayHabits(prev => prev.map(h => 
+        h.id === habitId ? { ...h, done: nextStatus } : h
+      ));
       
-      let outcomesData: any[] = [];
-      if (cycle) {
-        const { data: goals } = await supabase
-          .from('cycle_outcomes')
-          .select('*')
-          .eq('cycle_id', cycle.id)
-          .eq('user_name', user.name);
-        outcomesData = goals || [];
+      setStats(prev => ({
+        ...prev,
+        habitsDone: nextStatus ? prev.habitsDone + 1 : prev.habitsDone - 1
+      }));
+
+      // Find existing log to avoid upsert
+      const { data: existingLog } = await supabase
+        .from('habit_logs')
+        .select('*')
+        .eq('user_name', user.name)
+        .eq('habit_id', habitId)
+        .eq('date', todayStr)
+        .maybeSingle();
+
+      if (nextStatus) {
+        if (existingLog) {
+          await supabase
+            .from('habit_logs')
+            .update({ completed: true, value: 1 })
+            .eq('id', existingLog.id);
+        } else {
+          await supabase
+            .from('habit_logs')
+            .insert({
+              user_name: user.name,
+              habit_id: habitId,
+              date: todayStr,
+              completed: true,
+              value: 1
+            });
+        }
+      } else {
+        if (existingLog) {
+          await supabase
+            .from('habit_logs')
+            .delete()
+            .eq('id', existingLog.id);
+        }
       }
-
-      const totalHabits = habits?.length || 0;
-      const habitsDone = logs?.filter(l => l.completed).length || 0;
-
-      setTodayHabits(habits?.map(h => ({
-        ...h,
-        done: logs?.find(l => l.habit_id === h.id)?.completed || false
-      })) || []);
-
-      setTasks(dddTasks || []);
-      setOutcomes(outcomesData);
-
-      setStats({
-        habitsDone,
-        totalHabits,
-        weeklyAdherence: 0,
-        activeTasks: dddTasks?.length || 0,
-        urgentTasks: dddTasks?.filter(t => t.type === 'tem_que').length || 0,
-        maxStreak: 0
-      });
-
     } catch (error) {
-      console.error("Error fetching dashboard data:", error);
-    } finally {
-      setLoading(false);
+      console.error("Error toggling habit status:", error);
+      // Revert if error
+      fetchDashboardData();
     }
   };
 
@@ -245,105 +347,118 @@ export function Dashboard() {
         />
       </div>
 
+      {/* Goals Section (Full Width) */}
+      <div className="space-y-6 mb-12">
+        <div className="flex items-end justify-between px-2 md:px-0">
+          <div>
+            <h2 className="text-2xl md:text-3xl font-display font-bold text-secondary uppercase tracking-tight">Grandes Vitórias</h2>
+            <p className="text-text-muted mt-1 font-medium text-[10px] md:text-xs">As metas inegociáveis do seu ciclo de 12 semanas.</p>
+          </div>
+          <button onClick={() => navigate("/metas")} className="text-[9px] font-bold text-primary uppercase tracking-[0.3em] hover:opacity-70 transition-opacity">Ver Todas</button>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          {outcomes.length > 0 ? outcomes.map((goal, i) => (
+            <motion.div 
+              key={goal.id}
+              initial={{ opacity: 0, scale: 0.95 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              transition={{ delay: i * 0.05 }}
+              viewport={{ once: true }}
+              className="group p-6 md:p-8 rounded-3xl border border-surface-border transition-all duration-700 flex flex-col justify-between h-40 md:h-48 card-3d bg-surface hover:border-primary/20"
+            >
+              <div className="flex justify-between items-start">
+                <div className="w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl border border-primary/10 bg-primary/5 flex items-center justify-center text-primary transition-all duration-700 group-hover:scale-110 group-hover:-rotate-6">
+                  <Target className="w-5 h-5 md:w-6 md:h-6" />
+                </div>
+              </div>
+              <div>
+                <h3 className="text-lg md:text-xl font-display font-bold text-secondary group-hover:text-primary transition-colors uppercase tracking-tight line-clamp-2 leading-tight">{goal.title}</h3>
+                <div className="flex items-center gap-3 mt-1.5 md:mt-2">
+                   <p className="text-[8px] md:text-[9px] font-bold text-text-muted uppercase tracking-widest">META INEGOCIÁVEL</p>
+                </div>
+              </div>
+            </motion.div>
+          )) : (
+            <div className="col-span-1 md:col-span-2 lg:col-span-4 py-8 md:py-16 bg-surface-hover/20 rounded-3xl border border-dashed border-surface-border flex flex-col items-center justify-center gap-3">
+              <Target className="w-8 h-8 text-text-muted/30" />
+              <p className="text-[10px] md:text-xs font-bold text-text-muted uppercase tracking-widest text-center px-4">Nenhuma meta definida para este ciclo</p>
+              <button onClick={() => navigate("/metas")} className="text-[9px] font-bold text-primary underline decoration-primary/30 underline-offset-4 uppercase tracking-widest mt-2 hover:opacity-80">Definir agora</button>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Habits & Tasks Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Main Column */}
-        <div className="lg:col-span-8 space-y-12">
-          {/* Goals Section */}
-          <div className="space-y-6">
-            <div className="flex items-end justify-between px-2 md:px-0">
-              <div>
-                <h2 className="text-2xl md:text-3xl font-display font-bold text-secondary uppercase tracking-tight">Grandes Vitórias</h2>
-                <p className="text-text-muted mt-1 font-medium text-[10px] md:text-xs">As metas inegociáveis do seu ciclo de 12 semanas.</p>
-              </div>
-              <button onClick={() => navigate("/metas")} className="text-[9px] font-bold text-primary uppercase tracking-[0.3em] hover:opacity-70 transition-opacity">Ver Todas</button>
+        <div className="lg:col-span-8 space-y-6 md:space-y-8">
+          {/* Habits Section */}
+          <div className="flex items-end justify-between px-2 md:px-0">
+            <div>
+              <h2 className="text-2xl md:text-3xl font-display font-bold text-secondary uppercase tracking-tight">Ações de hoje</h2>
+              <p className="text-text-muted mt-1 font-medium text-[10px] md:text-xs">Sua rota diária rumo ao objetivo absoluto.</p>
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {outcomes.length > 0 ? outcomes.slice(0, 4).map((goal, i) => (
-                <motion.div 
-                  key={goal.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.1 }}
-                  className="bg-surface border border-surface-border p-5 rounded-2xl flex items-center gap-4 group hover:border-primary/20 transition-all card-3d"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                    <Target className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-secondary uppercase truncate">{goal.title}</p>
-                    <p className="text-[9px] font-bold text-text-muted uppercase tracking-widest mt-0.5">META INEGOCIÁVEL</p>
-                  </div>
-                </motion.div>
-              )) : (
-                <div className="col-span-2 py-8 bg-surface-hover/20 rounded-2xl border border-dashed border-surface-border flex flex-col items-center justify-center gap-3">
-                  <Target className="w-6 h-6 text-text-muted/30" />
-                  <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Nenhuma meta definida para este ciclo</p>
-                  <button onClick={() => navigate("/metas")} className="text-[9px] font-bold text-primary underline decoration-primary/30 underline-offset-4 uppercase tracking-widest">Definir agora</button>
-                </div>
-              )}
-            </div>
+            <button 
+              onClick={() => navigate("/habitos")}
+              className="text-[9px] font-bold text-primary uppercase tracking-[0.3em] hover:opacity-70 transition-opacity"
+            >
+              Arquivos
+            </button>
           </div>
 
-          {/* Habits Section */}
-          <div className="space-y-6 md:space-y-8">
-            <div className="flex items-end justify-between px-2 md:px-0">
-              <div>
-                <h2 className="text-2xl md:text-3xl font-display font-bold text-secondary uppercase tracking-tight">Ações de hoje</h2>
-                <p className="text-text-muted mt-1 font-medium text-[10px] md:text-xs">Sua rota diária rumo ao objetivo absoluto.</p>
-              </div>
-              <button 
-                onClick={() => navigate("/habitos")}
-                className="text-[9px] font-bold text-primary uppercase tracking-[0.3em] hover:opacity-70 transition-opacity"
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {todayHabits.map((habit, i) => (
+              <motion.div 
+                key={habit.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.1 }}
+                className={cn(
+                  "bg-surface border border-surface-border p-4 md:p-5 rounded-2xl flex items-center gap-4 group hover:border-primary/20 transition-all card-3d",
+                  habit.done ? "opacity-60 bg-primary/5" : ""
+                )}
               >
-                Arquivos
-              </button>
-            </div>
+                <div className={cn(
+                  "w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center text-white flex-shrink-0 transition-transform group-hover:scale-105",
+                  habit.done ? "grayscale contrast-125" : ""
+                )} style={{ backgroundColor: habit.color || '#5E6E5A' }}>
+                  <Zap className="w-5 h-5" />
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-              {todayHabits.map((habit, i) => (
-                <motion.div 
-                  key={habit.id}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: i * 0.05 }}
-                  viewport={{ once: true }}
+                <div className="flex-1 min-w-0">
+                  <p className={cn("text-xs md:text-sm font-bold uppercase truncate transition-colors", habit.done ? "text-text-muted" : "text-secondary")}>{habit.name}</p>
+                  <div className="flex items-center gap-2 mt-0.5 md:mt-1">
+                    <span className="text-[8px] md:text-[9px] font-bold text-text-muted uppercase tracking-[0.2em]">{habit.area || "Geral"}</span>
+                    <span className="w-1 h-1 rounded-full bg-surface-border" />
+                    {habit.isTheoreticallyDone ? (
+                      <span className="text-[8px] md:text-[9px] font-bold text-accent uppercase tracking-[0.2em]">Meta Semanal Cumprida</span>
+                    ) : (
+                      <span className="text-[8px] md:text-[9px] font-bold text-primary uppercase tracking-[0.2em]">{habit?.type === 'numeric' ? `${habit.daily_goal} ${habit.unit}` : 'Check'}</span>
+                    )}
+                  </div>
+                </div>
+
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleHabitStatus(habit.id);
+                  }}
                   className={cn(
-                    "group p-6 md:p-8 rounded-3xl border transition-all duration-700 flex flex-col justify-between h-40 md:h-48 card-3d",
+                    "w-10 h-10 rounded-full border flex items-center justify-center transition-all duration-300 active:scale-95 flex-shrink-0",
                     habit.done 
-                      ? "bg-primary/5 border-primary/10 opacity-60" 
-                      : "bg-surface border-surface-border hover:border-primary/20"
+                      ? habit.isTheoreticallyDone
+                        ? "bg-accent/20 border-accent/20 text-accent cursor-not-allowed"
+                        : "bg-primary border-primary text-white shadow-md shadow-primary/20"
+                      : "border-surface-border hover:border-primary hover:bg-primary/5 text-primary"
                   )}
                 >
-                  <div className="flex justify-between items-start">
-                    <div className={cn(
-                      "w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl flex items-center justify-center text-white shadow-sm transition-all duration-700 group-hover:scale-110 group-hover:-rotate-6",
-                      habit.done ? "grayscale contrast-125" : ""
-                    )} style={{ backgroundColor: habit.color || '#5E6E5A' }}>
-                      <Zap className="w-5 h-5 md:w-6 md:h-6" />
-                    </div>
-                    <div className={cn(
-                      "w-8 h-8 md:w-12 md:h-12 rounded-full border flex items-center justify-center transition-all duration-700",
-                      habit.done 
-                        ? "bg-primary border-primary text-white shadow-lg shadow-primary/30" 
-                        : "border-surface-border group-hover:border-primary group-hover:bg-primary/5"
-                    )}>
-                      {habit.done ? <Zap className="w-4 h-4 md:w-5 md:h-5 fill-current" /> : <div className="w-1.5 h-1.5 rounded-full bg-surface-border group-hover:scale-150 transition-all group-hover:bg-primary" />}
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-lg md:text-xl font-display font-bold text-secondary group-hover:text-primary transition-colors uppercase tracking-tight">{habit.name}</h3>
-                    <div className="flex items-center gap-3 mt-1">
-                      <span className="text-[8px] md:text-[9px] font-bold text-text-muted uppercase tracking-[0.2em]">{habit.area || "Geral"}</span>
-                      <span className="w-1 h-1 rounded-full bg-surface-border" />
-                      <span className="text-[8px] md:text-[9px] font-bold text-primary uppercase tracking-[0.2em]">{habit?.type === 'numeric' ? `${habit.daily_goal} ${habit.unit}` : 'Check'}</span>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+                  {habit.done 
+                   ? <Zap className="w-4 h-4 md:w-5 md:h-5 fill-current" /> 
+                   : <div className="w-1.5 h-1.5 rounded-full bg-surface-border group-hover:bg-primary transition-colors" />}
+                </button>
+              </motion.div>
+            ))}
           </div>
         </div>
 
