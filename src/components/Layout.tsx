@@ -75,39 +75,39 @@ export function Layout({ user, onLogout }: { user: { name: string }, onLogout: (
   }, []);
 
   return (
-    <div className="min-h-screen w-full bg-background text-text-main selection:bg-primary selection:text-white pb-12 md:pb-0 md:pl-24 lg:pl-64">
+    <div className="min-h-screen w-full bg-background text-text-main selection:bg-primary selection:text-white pb-12 md:pb-0 md:pl-20 lg:pl-60">
       {/* Desktop Sidebar (Lg screens) */}
-      <aside className="hidden lg:flex fixed left-0 top-0 h-full w-64 bg-surface/50 backdrop-blur-2xl border-r border-surface-border flex-col z-50">
-        <div className="p-8 pb-4">
-          <div className="flex items-center gap-3 mb-12">
-            <div className="w-11 h-11 bg-primary rounded-2xl flex items-center justify-center text-[11px] text-white font-bold shadow-2xl shadow-primary/30 rotate-3 group-hover:rotate-0 transition-transform">NN</div>
+      <aside className="hidden lg:flex fixed left-0 top-0 h-full w-60 bg-surface/50 backdrop-blur-2xl border-r border-surface-border flex-col z-50">
+        <div className="p-6 pb-4">
+          <div className="flex items-center gap-3 mb-10">
+            <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center text-[10px] text-white font-bold shadow-2xl shadow-primary/30 rotate-3 group-hover:rotate-0 transition-transform">NN</div>
             <div>
-              <span className="oryzo-logo block leading-none text-2xl tracking-[-0.08em]">Nosso Norte</span>
-              <span className="text-[8px] font-bold text-text-muted uppercase tracking-[0.4em] mt-1 block opacity-60">ARCHITECTS OF TIME</span>
+              <span className="oryzo-logo block leading-none text-xl tracking-[-0.08em]">Nosso Norte</span>
+              <span className="text-[7px] font-bold text-text-muted uppercase tracking-[0.4em] mt-1 block opacity-60">ARCHITECTS OF TIME</span>
             </div>
           </div>
           
-          <div className="text-[10px] font-bold text-text-muted uppercase tracking-[0.4em] mb-6 pl-4 opacity-40">NAVEGAÇÃO / 0&bull;1</div>
+          <div className="text-[9px] font-bold text-text-muted uppercase tracking-[0.4em] mb-4 pl-4 opacity-40">NAVEGAÇÃO / 0&bull;1</div>
         </div>
         
-        <nav className="flex-1 px-4 space-y-2 overflow-y-auto scrollbar-hide">
+        <nav className="flex-1 px-3 space-y-1.5 overflow-y-auto scrollbar-hide">
           {navItems.map((item, index) => (
             <NavLink
               key={item.path}
               to={item.path}
               className={({ isActive }) =>
                 cn(
-                  "flex items-center gap-4 px-5 py-4 rounded-2xl text-[11px] font-bold uppercase tracking-[0.2em] transition-all duration-500 group relative overflow-hidden",
+                  "flex items-center gap-4 px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] transition-all duration-500 group relative overflow-hidden",
                   isActive 
-                    ? "bg-secondary text-white shadow-xl shadow-secondary/20" 
+                    ? "bg-secondary text-white shadow-lg shadow-secondary/15" 
                     : "text-text-muted hover:bg-surface-hover hover:text-secondary border border-transparent hover:border-surface-border"
                 )
               }
             >
-              <div className="flex items-center gap-4 relative z-10 w-full">
-                <item.icon className={cn("w-4 h-4 transition-transform group-hover:scale-110")} />
+              <div className="flex items-center gap-3.5 relative z-10 w-full">
+                <item.icon className={cn("w-3.5 h-3.5 transition-transform group-hover:scale-110")} />
                 <span>{item.name}</span>
-                <span className="ml-auto text-[8px] opacity-30 font-mono">0{index + 1}</span>
+                <span className="ml-auto text-[7px] opacity-30 font-mono">0{index + 1}</span>
               </div>
             </NavLink>
           ))}
@@ -152,9 +152,9 @@ export function Layout({ user, onLogout }: { user: { name: string }, onLogout: (
       </aside>
 
       {/* Desktop Sidebar (Md screens - Icons only) */}
-      <aside className="hidden md:flex lg:hidden fixed left-0 top-0 h-full w-24 bg-surface border-r border-surface-border flex-col items-center py-10 z-50">
-        <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center text-[11px] text-white font-bold shadow-2xl shadow-primary/30 mb-12 rotate-3">NN</div>
-        <nav className="flex-1 space-y-6">
+      <aside className="hidden md:flex lg:hidden fixed left-0 top-0 h-full w-20 bg-surface border-r border-surface-border flex-col items-center py-10 z-50">
+        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-[10px] text-white font-bold shadow-2xl shadow-primary/30 mb-10 rotate-3">NN</div>
+        <nav className="flex-1 space-y-5">
           {navItems.map((item) => (
             <NavLink
               key={item.path}
@@ -162,24 +162,24 @@ export function Layout({ user, onLogout }: { user: { name: string }, onLogout: (
               title={item.name}
               className={({ isActive }) =>
                 cn(
-                  "flex items-center justify-center w-14 h-14 rounded-2xl transition-all duration-500",
+                  "flex items-center justify-center w-12 h-12 rounded-xl transition-all duration-500",
                   isActive 
-                    ? "bg-secondary text-white shadow-2xl shadow-secondary/20 scale-110" 
+                    ? "bg-secondary text-white shadow-xl shadow-secondary/20 scale-105" 
                     : "text-text-muted hover:bg-surface-hover hover:text-secondary border border-transparent hover:border-surface-border"
                 )
               }
             >
-              <item.icon className="w-6 h-6" />
+              <item.icon className="w-5 h-5" />
             </NavLink>
           ))}
         </nav>
         
         <button 
           onClick={handleLogout}
-          className="w-14 h-14 rounded-2xl flex items-center justify-center text-text-muted hover:text-red-500 hover:bg-red-50 transition-all duration-500"
+          className="w-12 h-12 rounded-xl flex items-center justify-center text-text-muted hover:text-red-500 hover:bg-red-50 transition-all duration-500"
           title="Sair"
         >
-          <LogOut className="w-6 h-6" />
+          <LogOut className="w-5 h-5" />
         </button>
       </aside>
 
@@ -279,7 +279,7 @@ export function Layout({ user, onLogout }: { user: { name: string }, onLogout: (
 
       {/* Main Content */}
       <main className={cn(
-        "transition-all duration-700 pt-32 md:pt-12 px-6 md:px-10 lg:px-16 w-full animate-in fade-in duration-700",
+        "transition-all duration-700 pt-32 md:pt-10 px-6 md:px-8 lg:px-12 w-full animate-in fade-in duration-700",
         isMobileMenuOpen ? "blur-xl" : "blur-0"
       )}>
         <Outlet />
