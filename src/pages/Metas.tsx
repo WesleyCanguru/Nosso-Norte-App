@@ -254,40 +254,40 @@ export function Metas() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-12 md:space-y-20 pb-32 px-4 md:px-0">
-      <motion.header initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-        <div className="flex items-center gap-2 px-3 py-1 bg-primary/5 rounded-full border border-primary/10 w-fit">
+    <div className="max-w-6xl mx-auto space-y-8 md:space-y-12 pb-24 px-4 md:px-0">
+      <motion.header initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
+        <div className="flex items-center gap-1.5 px-3 py-1 bg-primary/5 rounded-full border border-primary/10 w-fit">
           <Target className="w-3 h-3 text-primary" />
-          <span className="text-[9px] font-bold text-primary uppercase tracking-[0.3em]">A Arqueologia do Futuro</span>
+          <span className="text-[8px] font-bold text-primary uppercase tracking-[0.3em]">A Arqueologia do Futuro</span>
         </div>
-        <h1 className="text-3xl md:text-5xl lg:text-6xl font-display font-bold text-secondary tracking-[-0.04em] leading-[0.9] uppercase">Nossas<br/>Metas.</h1>
-        <p className="text-text-muted text-base md:text-lg max-w-lg font-light leading-relaxed pt-2">Onde a intenção se torna arquitetura. Defina o seu destino e mapeie o caminho com precisão absoluta.</p>
+        <h1 className="text-2xl md:text-4xl lg:text-5xl font-display font-bold text-secondary tracking-[-0.04em] leading-[0.9] uppercase">Nossas<br/>Metas.</h1>
+        <p className="text-text-muted text-sm md:text-base max-w-lg font-light leading-relaxed pt-1">Onde a intenção se torna arquitetura. Defina o seu destino e mapeie o caminho com precisão absoluta.</p>
       </motion.header>
 
-      <section className="bg-secondary rounded-3xl md:rounded-[2.5rem] p-8 md:p-10 text-white relative overflow-hidden shadow-2xl">
+      <section className="bg-secondary rounded-[2rem] p-6 md:p-8 text-white relative overflow-hidden shadow-2xl">
         <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          <div className="lg:col-span-7 space-y-6 md:space-y-8">
-            <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/10">
-                <div className="w-2 h-2 bg-primary animate-pulse rounded-full" />
-                <span className="text-[9px] font-bold uppercase tracking-[0.3em]">Configurar Jornada</span>
+          <div className="lg:col-span-7 space-y-5 md:space-y-6">
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-full border border-white/10">
+                <div className="w-1.5 h-1.5 bg-primary animate-pulse rounded-full" />
+                <span className="text-[8px] font-bold uppercase tracking-[0.3em]">Configurar Jornada</span>
               </div>
-              <h2 className="text-3xl md:text-5xl font-display font-bold leading-[1.1] uppercase tracking-tighter">O Ano em <span className="text-primary italic">12 Semanas.</span></h2>
-              <p className="text-white/60 text-base md:text-lg max-w-lg font-light italic">“Um ano não tem 12 meses. Tem {cycle ? "12 semanas" : "o quanto você desejar"}. O tempo é curto, a execução deve ser implacável.”</p>
+              <h2 className="text-2xl md:text-4xl font-display font-bold leading-[1.1] uppercase tracking-tighter">O Ano em <span className="text-primary italic">12 Semanas.</span></h2>
+              <p className="text-white/60 text-sm md:text-base max-w-lg font-light italic">“Um ano não tem 12 meses. Tem {cycle ? "12 semanas" : "o quanto você desejar"}. O tempo é curto, a execução deve ser implacável.”</p>
             </div>
             {cycle && cycleInfo && (
-              <div className="space-y-6 pt-4 max-w-md">
+              <div className="space-y-5 pt-3 max-w-sm">
                 <div className="flex justify-between items-end">
                   <div className="space-y-1">
-                    <p className="text-[9px] font-bold text-white/30 uppercase tracking-[0.4em]">Dia {cycleInfo.currentDay} de {cycleInfo.totalDays}</p>
-                    <p className="text-xl font-bold font-display uppercase italic text-primary">{Math.round((cycleInfo.currentDay / cycleInfo.totalDays) * 100)}% Concluído</p>
+                    <p className="text-[8px] font-bold text-white/30 uppercase tracking-[0.4em]">Dia {cycleInfo.currentDay} de {cycleInfo.totalDays}</p>
+                    <p className="text-lg font-bold font-display uppercase italic text-primary">{Math.round((cycleInfo.currentDay / cycleInfo.totalDays) * 100)}% Concluído</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-[9px] font-bold text-white/30 uppercase tracking-[0.4em]">Fase do Ciclo</p>
-                    <p className="text-xs font-bold uppercase tracking-widest">Semana {Math.ceil(cycleInfo.currentDay / 7)} / 12</p>
+                    <p className="text-[8px] font-bold text-white/30 uppercase tracking-[0.4em]">Fase do Ciclo</p>
+                    <p className="text-[10px] md:text-xs font-bold uppercase tracking-widest">Semana {Math.ceil(cycleInfo.currentDay / 7)} / 12</p>
                   </div>
                 </div>
-                <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+                <div className="h-1 lg:h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
                   <motion.div 
                     initial={{ width: 0 }}
                     animate={{ width: `${cycleInfo.progress}%` }}
@@ -298,78 +298,78 @@ export function Metas() {
               </div>
             )}
             {cycle ? (
-              <div className="flex flex-wrap items-center gap-8 md:gap-10 pt-2">
+              <div className="flex flex-wrap items-center gap-6 md:gap-8 pt-2">
                 <div className="space-y-1">
-                  <p className="text-[8px] font-bold text-white/30 uppercase tracking-[0.4em]">Início do Ciclo</p>
-                  <p className="text-xl md:text-2xl font-display font-bold">{format(parseISO(cycle.start_date), "dd 'de' MMMM", { locale: ptBR })}</p>
+                  <p className="text-[7px] font-bold text-white/30 uppercase tracking-[0.4em]">Início do Ciclo</p>
+                  <p className="text-lg md:text-xl font-display font-bold">{format(parseISO(cycle.start_date), "dd 'de' MMMM", { locale: ptBR })}</p>
                 </div>
-                <div className="w-px h-10 bg-white/10 hidden md:block" />
+                <div className="w-px h-8 bg-white/10 hidden md:block" />
                 <div className="space-y-1">
-                  <p className="text-[8px] font-bold text-white/30 uppercase tracking-[0.4em]">Horizonte Final</p>
-                  <p className="text-xl md:text-2xl font-display font-bold text-primary">{format(addDays(parseISO(cycle.start_date), 84), "dd 'de' MMMM", { locale: ptBR })}</p>
+                  <p className="text-[7px] font-bold text-white/30 uppercase tracking-[0.4em]">Horizonte Final</p>
+                  <p className="text-lg md:text-xl font-display font-bold text-primary">{format(addDays(parseISO(cycle.start_date), 84), "dd 'de' MMMM", { locale: ptBR })}</p>
                 </div>
-                <Button onClick={() => { setNewCycleStartDate(cycle.start_date); setIsCycleModalOpen(true); }} className="bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl px-6 py-3 font-bold uppercase tracking-[0.2em] text-[10px]">Redefinir Ciclo</Button>
+                <Button onClick={() => { setNewCycleStartDate(cycle.start_date); setIsCycleModalOpen(true); }} className="bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl px-5 py-2.5 font-bold uppercase tracking-[0.2em] text-[9px]">Redefinir Ciclo</Button>
               </div>
             ) : (
-              <Button onClick={() => setIsCycleModalOpen(true)} className="bg-primary text-secondary hover:scale-105 px-8 py-4 rounded-xl font-bold uppercase tracking-widest transition-all">Iniciar Ciclo de 12 Semanas</Button>
+              <Button onClick={() => setIsCycleModalOpen(true)} className="bg-primary text-secondary hover:scale-105 px-6 py-3 rounded-xl font-bold uppercase tracking-widest transition-all">Iniciar Ciclo de 12 Semanas</Button>
             )}
           </div>
         </div>
       </section>
 
-      <section className="space-y-10">
-        <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div className="space-y-3">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 md:w-12 md:h-12 bg-primary/10 rounded-xl md:rounded-[1.2rem] flex items-center justify-center">
-                <Target className="w-5 h-5 md:w-6 md:h-6 text-primary" />
+      <section className="space-y-8">
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-5">
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 md:w-10 md:h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+                <Target className="w-4 h-4 text-primary" />
               </div>
-              <h2 className="text-xl md:text-3xl font-display font-bold text-secondary uppercase tracking-tight">Grandes Vitórias</h2>
+              <h2 className="text-lg md:text-2xl font-display font-bold text-secondary uppercase tracking-tight">Grandes Vitórias</h2>
             </div>
-            <p className="text-text-muted text-[11px] md:text-sm max-w-xl font-light">Escolha as suas grandes metas inegociáveis. Se tudo mais falhar, estas são as vitórias que definirão o sucesso do seu ciclo.</p>
+            <p className="text-text-muted text-[10px] md:text-xs max-w-xl font-light">Escolha as suas grandes metas inegociáveis. Se tudo mais falhar, estas são as vitórias que definirão o sucesso do seu ciclo.</p>
           </div>
-          <div className="flex items-center gap-3 bg-surface border border-surface-border p-1.5 rounded-xl md:min-w-[340px]">
-            <input type="text" value={newOutcome} onChange={(e) => setNewOutcome(e.target.value)} placeholder="Descreva a meta..." className="flex-1 bg-transparent px-3 py-1.5 text-[11px] font-medium text-secondary outline-none"/>
-            <button onClick={addOutcome} className="bg-primary text-white p-2.5 rounded-lg hover:scale-105 transition-transform"><Plus className="w-4 h-4"/></button>
+          <div className="flex items-center gap-2 bg-surface border border-surface-border p-1.5 rounded-xl md:min-w-[300px]">
+            <input type="text" value={newOutcome} onChange={(e) => setNewOutcome(e.target.value)} placeholder="Descreva a meta..." className="flex-1 bg-transparent px-3 py-1.5 text-[10px] font-medium text-secondary outline-none"/>
+            <button onClick={addOutcome} className="bg-primary text-white p-2 rounded-lg hover:scale-105 transition-transform"><Plus className="w-3.5 h-3.5"/></button>
           </div>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {outcomes.map((o, idx) => (
-            <motion.div key={o.id} className="bg-surface border border-surface-border rounded-3xl p-6 md:p-8 space-y-4 group hover:shadow-xl transition-all relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-6 opacity-5"><span className="text-6xl font-display font-bold italic">{idx + 1}</span></div>
-              <div className="w-9 h-9 bg-primary/5 rounded-lg flex items-center justify-center"><Target className="w-4 h-4 text-primary" /></div>
-              <h3 className="text-lg md:text-xl font-display font-bold text-secondary uppercase leading-tight">{o.title}</h3>
-              <div className="flex justify-end pt-3 border-t border-surface-border/50">
-                <button onClick={async () => { if(confirm("Remover meta?")) { await supabase.from('cycle_outcomes').delete().eq('id', o.id).eq('user_name', user.name); fetchOutcomes(); } }} className="text-text-muted hover:text-red-500 transition-all"><Trash2 className="w-3.5 h-3.5"/></button>
+            <motion.div key={o.id} className="bg-surface border border-surface-border rounded-2xl p-5 md:p-6 space-y-3 group hover:shadow-xl transition-all relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 opacity-5"><span className="text-5xl font-display font-bold italic">{idx + 1}</span></div>
+              <div className="w-8 h-8 bg-primary/5 rounded-lg flex items-center justify-center"><Target className="w-3.5 h-3.5 text-primary" /></div>
+              <h3 className="text-base md:text-lg font-display font-bold text-secondary uppercase leading-tight pr-8 line-clamp-3">{o.title}</h3>
+              <div className="flex justify-end pt-2 border-t border-surface-border/50">
+                <button onClick={async () => { if(confirm("Remover meta?")) { await supabase.from('cycle_outcomes').delete().eq('id', o.id).eq('user_name', user.name); fetchOutcomes(); } }} className="text-text-muted hover:text-red-500 transition-all"><Trash2 className="w-3 h-3"/></button>
               </div>
             </motion.div>
           ))}
         </div>
       </section>
 
-      <section className="space-y-10 md:space-y-12">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-surface-border pb-6 md:pb-8">
-          <h2 className="text-2xl md:text-4xl font-display font-bold text-secondary uppercase tracking-tighter">Gestão de Hábitos</h2>
-          <button onClick={() => { resetForm(); setIsModalOpen(true); }} className="bg-secondary text-white h-12 md:h-14 px-8 md:px-10 rounded-xl font-bold flex items-center justify-center gap-3 hover:scale-105 transition-all shadow-xl uppercase text-[9px] md:text-[10px] tracking-widest"><Plus className="w-4 h-4"/><span>Novo Hábito</span></button>
+      <section className="space-y-8">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-5 border-b border-surface-border pb-5">
+          <h2 className="text-xl md:text-3xl font-display font-bold text-secondary uppercase tracking-tighter">Gestão de Hábitos</h2>
+          <button onClick={() => { resetForm(); setIsModalOpen(true); }} className="bg-secondary text-white h-10 md:h-12 px-6 md:px-8 rounded-xl font-bold flex items-center justify-center gap-2 hover:scale-105 transition-all shadow-xl uppercase text-[8px] md:text-[9px] tracking-widest"><Plus className="w-3.5 h-3.5"/><span>Novo Hábito</span></button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredHabits.map((habit) => (
-            <div key={habit.id} className="bg-surface border border-surface-border rounded-3xl p-6 md:p-8 space-y-5 group hover:shadow-xl transition-all shadow-sm">
+            <div key={habit.id} className="bg-surface border border-surface-border rounded-2xl p-5 space-y-4 group hover:shadow-xl transition-all shadow-sm">
                 <div className="flex justify-between items-start">
-                  <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center border border-black/5" style={{ backgroundColor: habit.color || '#5E6E5A' }}>
-                    <Sparkles className="w-5 h-5 text-white" />
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center border border-black/5" style={{ backgroundColor: habit.color || '#5E6E5A' }}>
+                    <Sparkles className="w-4 h-4 text-white" />
                   </div>
                   <div className="flex gap-1.5">
-                    <button onClick={() => handleEdit(habit)} className="p-2 text-text-muted hover:text-primary transition-all"><Pencil className="w-3.5 h-3.5"/></button>
-                    <button onClick={() => deleteHabit(habit.id)} className="p-2 text-text-muted hover:text-red-500 transition-all"><Trash2 className="w-3.5 h-3.5"/></button>
+                    <button onClick={() => handleEdit(habit)} className="p-1.5 text-text-muted hover:text-primary transition-all"><Pencil className="w-3 h-3"/></button>
+                    <button onClick={() => deleteHabit(habit.id)} className="p-1.5 text-text-muted hover:text-red-500 transition-all"><Trash2 className="w-3 h-3"/></button>
                   </div>
                 </div>
-                <h3 className="text-lg md:text-xl font-display font-bold text-secondary uppercase tracking-tight">{habit.name}</h3>
-                <div className="flex items-center justify-between pt-3 border-t border-surface-border/50">
-                  <span className="text-[9px] font-bold text-text-muted uppercase tracking-widest">{habit.category}</span>
-                  <div className="flex items-center gap-1 text-[9px] font-bold text-primary"><Zap className="w-3 h-3" /> {habit.frequency_per_week}x/Semana</div>
+                <h3 className="text-base md:text-lg font-display font-bold text-secondary uppercase tracking-tight truncate">{habit.name}</h3>
+                <div className="flex items-center justify-between pt-2 border-t border-surface-border/50">
+                  <span className="text-[8px] font-bold text-text-muted uppercase tracking-[0.2em]">{habit.category}</span>
+                  <div className="flex items-center gap-1 text-[8px] font-bold text-primary"><Zap className="w-2.5 h-2.5" /> {habit.frequency_per_week}x/Semana</div>
                 </div>
             </div>
           ))}

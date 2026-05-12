@@ -65,20 +65,20 @@ export function Pomodoro() {
   const currentModeInfo = MODES[mode];
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-20 px-4">
+    <div className="max-w-4xl mx-auto space-y-6 pb-16 px-4">
       <header className="flex justify-between items-start">
         <div className="space-y-1">
-          <h1 className="text-4xl md:text-5xl font-display font-bold text-secondary tracking-tight">Pomodoro</h1>
+          <h1 className="text-3xl md:text-5xl font-display font-bold text-secondary tracking-tight">Pomodoro</h1>
           <p className="text-text-muted text-sm md:text-base font-medium">
             {completedSessions} sessões de foco concluídas
           </p>
         </div>
         <button className="w-10 h-10 md:w-12 md:h-12 bg-surface hover:bg-surface-hover rounded-xl border border-surface-border flex items-center justify-center text-text-muted hover:text-primary transition-all">
-          <Settings className="w-5 h-5 md:w-6 md:h-6" />
+          <Settings className="w-5 h-5 md:w-5 md:h-5" />
         </button>
       </header>
 
-      <div className="relative bg-surface border border-surface-border rounded-[2rem] p-8 md:p-16 lg:p-20 shadow-2xl overflow-hidden group min-h-[500px] flex flex-col items-center justify-between card-3d">
+      <div className="relative bg-surface border border-surface-border rounded-2xl md:rounded-[2rem] p-6 md:p-12 lg:p-16 shadow-2xl overflow-hidden group min-h-[400px] flex flex-col items-center justify-between card-3d">
         {/* Top Accent Border */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-80" />
         
@@ -86,7 +86,7 @@ export function Pomodoro() {
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
 
         {/* Mode Selector */}
-        <div className="relative z-10 flex flex-wrap justify-center gap-3">
+        <div className="relative z-10 flex flex-wrap justify-center gap-2 md:gap-3">
           {(Object.keys(MODES) as Mode[]).map((m) => {
             const Icon = MODES[m].icon;
             const active = mode === m;
@@ -95,13 +95,13 @@ export function Pomodoro() {
                 key={m}
                 onClick={() => changeMode(m)}
                 className={cn(
-                  "flex items-center gap-3 px-6 py-3 rounded-xl text-[10px] md:text-[11px] font-bold uppercase tracking-widest transition-all duration-500",
+                  "flex items-center gap-2 md:gap-3 px-4 md:px-6 py-2.5 md:py-3 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-widest transition-all duration-500",
                   active 
                     ? "bg-primary text-white shadow-2xl shadow-primary/30 scale-105" 
                     : "bg-background text-text-muted hover:bg-surface-hover border border-surface-border"
                 )}
               >
-                <Icon className="w-4 h-4" />
+                <Icon className="w-3.5 h-3.5" />
                 {MODES[m].title}
               </button>
             );
@@ -109,10 +109,10 @@ export function Pomodoro() {
         </div>
 
         {/* Timer Display */}
-        <div className="relative my-12">
+        <div className="relative my-8 md:my-12">
           {/* Circular Container */}
-          <div className="relative w-64 h-64 md:w-80 md:h-80 lg:w-[400px] lg:h-[400px] rounded-full border-[16px] md:border-[24px] border-background flex flex-col items-center justify-center shadow-inner overflow-hidden">
-            <span className="text-6xl md:text-8xl lg:text-9xl font-display font-bold text-secondary tracking-[-0.04em] leading-none">
+          <div className="relative w-56 h-56 md:w-72 md:h-72 lg:w-[340px] lg:h-[340px] rounded-full border-[12px] md:border-[20px] border-background flex flex-col items-center justify-center shadow-inner overflow-hidden">
+            <span className="text-5xl md:text-7xl lg:text-8xl font-display font-bold text-secondary tracking-[-0.04em] leading-none">
               {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
             </span>
             <span className="mt-4 text-xs md:text-sm font-bold text-primary/40 uppercase tracking-[0.3em]">
