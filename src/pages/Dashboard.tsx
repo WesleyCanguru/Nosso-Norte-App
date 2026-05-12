@@ -6,19 +6,22 @@ import {
   ChevronRight, 
   ArrowRight,
   TrendingUp,
-  Target
+  Target,
+  Calendar
 } from "lucide-react";
 import { useUser } from "@/hooks/useUser";
+import { useCycle } from "@/hooks/useCycle";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { getCycleInfo } from "@/lib/cycle";
 import { cn } from "@/lib/utils";
 import { motion } from "motion/react";
+import { parseISO, format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 export function Dashboard() {
   const navigate = useNavigate();
   const user = useUser();
-  const { currentDay, totalDays, cycleProgress } = getCycleInfo();
+  const { cycle } = useCycle();
   const [loading, setLoading] = useState(true);
   const [todayHabits, setTodayHabits] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
@@ -30,6 +33,21 @@ export function Dashboard() {
     urgentTasks: 0,
     maxStreak: 0
   });
+
+  const getCycleProgress = () => {
+    if (!cycle) return null;
+    const start = parseISO(cycle.start_date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diffTime = today.getTime() - start.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    const totalDays = 84; 
+    const progress = Math.min(Math.max((diffDays / totalDays) * 100, 0), 100);
+    const currentDay = Math.min(Math.max(diffDays, 0), totalDays);
+    return { currentDay, totalDays, progress };
+  };
+
+  const cycleInfo = getCycleProgress();
 
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -100,10 +118,32 @@ export function Dashboard() {
                 </span>
               </div>
               
-              <h1 className="text-4xl md:text-6xl lg:text-7xl font-display font-bold leading-[0.9] tracking-[-0.04em] uppercase">
-                Rumo ao<br />
-                seu <span className="text-accent italic font-medium">norte.</span>
-              </h1>
+              <div className="space-y-4">
+                <h1 className="text-4xl md:text-6xl lg:text-7xl font-display font-bold leading-[0.9] tracking-[-0.04em] uppercase">
+                  Rumo ao<br />
+                  seu <span className="text-accent italic font-medium">norte.</span>
+                </h1>
+
+                {cycle && cycleInfo && (
+                  <div className="pt-2 space-y-4 max-w-sm">
+                    <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-3 h-3 text-primary" />
+                        <span>DIA {cycleInfo.currentDay} / {cycleInfo.totalDays}</span>
+                      </div>
+                      <span>{Math.round(cycleInfo.progress)}% DO CICLO</span>
+                    </div>
+                    <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${cycleInfo.progress}%` }}
+                        transition={{ duration: 1.5, ease: "easeOut" }}
+                        className="h-full bg-primary shadow-[0_0_10px_rgba(45,79,60,0.5)]"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
               
               <p className="text-white/60 text-lg md:text-xl font-light leading-relaxed max-w-md">
                 “Um ciclo por vez, moldando a intenção em arquitetura de vida.”

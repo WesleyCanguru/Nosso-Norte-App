@@ -11,14 +11,16 @@ import {
   ChevronRight,
   User,
   Menu,
-  X
+  X,
+  Calendar
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "./Button";
-import { getCycleInfo } from "@/lib/cycle";
+import { useCycle } from "@/hooks/useCycle";
 import { motion, AnimatePresence } from "motion/react";
+import { parseISO, format } from "date-fns";
 
 const navItems = [
   { name: "Início", path: "/", icon: LayoutDashboard },
@@ -35,7 +37,22 @@ export function Layout({ user, onLogout }: { user: { name: string }, onLogout: (
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { currentDay, totalDays, cycleProgress } = getCycleInfo();
+  const { cycle } = useCycle();
+
+  const getCycleProgress = () => {
+    if (!cycle) return null;
+    const start = parseISO(cycle.start_date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diffTime = today.getTime() - start.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    const totalDays = 84; 
+    const progress = Math.min(Math.max((diffDays / totalDays) * 100, 0), 100);
+    const currentDay = Math.min(Math.max(diffDays, 0), totalDays);
+    return { currentDay, totalDays, progress };
+  };
+
+  const cycleInfo = getCycleProgress();
 
   const handleLogout = async () => {
     if (confirm("Deseja realmente encerrar sua sessão?")) {
@@ -97,6 +114,25 @@ export function Layout({ user, onLogout }: { user: { name: string }, onLogout: (
         </nav>
 
         <div className="p-6 border-t border-surface-border space-y-4">
+          {cycle && cycleInfo && (
+            <div className="px-2 space-y-3 mb-4">
+              <div className="flex items-center justify-between text-[8px] font-bold text-text-muted uppercase tracking-[0.3em]">
+                <div className="flex items-center gap-1.5">
+                  <Calendar className="w-2.5 h-2.5 text-primary" />
+                  <span>DIA {cycleInfo.currentDay} / {cycleInfo.totalDays}</span>
+                </div>
+                <span>{Math.round(cycleInfo.progress)}%</span>
+              </div>
+              <div className="h-1 w-full bg-background border border-surface-border rounded-full overflow-hidden">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${cycleInfo.progress}%` }}
+                  transition={{ duration: 1 }}
+                  className="h-full bg-primary"
+                />
+              </div>
+            </div>
+          )}
           <div className="flex items-center gap-3 p-2">
             <div className="w-10 h-10 rounded-full bg-background border border-surface-border flex items-center justify-center">
               <User className="w-5 h-5 text-primary" />
@@ -200,6 +236,25 @@ export function Layout({ user, onLogout }: { user: { name: string }, onLogout: (
             </div>
 
             <div className="pt-8 mt-auto border-t border-surface-border space-y-6">
+              {cycle && cycleInfo && (
+                <div className="px-6 space-y-3">
+                  <div className="flex items-center justify-between text-[9px] font-bold text-text-muted uppercase tracking-[0.3em]">
+                    <div className="flex items-center gap-2">
+                       <Calendar className="w-3 h-3 text-primary" />
+                       <span>DIA {cycleInfo.currentDay} / {cycleInfo.totalDays}</span>
+                    </div>
+                    <span>{Math.round(cycleInfo.progress)}% DO CICLO</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-white/5 border border-white/5 rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${cycleInfo.progress}%` }}
+                      transition={{ duration: 1 }}
+                      className="h-full bg-primary"
+                    />
+                  </div>
+                </div>
+              )}
               <div className="flex items-center gap-4 px-6">
                 <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
                   <User className="w-6 h-6 text-primary" />
