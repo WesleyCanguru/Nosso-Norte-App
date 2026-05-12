@@ -124,7 +124,7 @@ export function Dashboard() {
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-12 lg:gap-16 relative z-10">
             <div className="space-y-6 md:space-y-8 max-w-2xl">
               <div className="inline-flex items-center gap-3 px-4 py-2 bg-white/5 backdrop-blur-md rounded-full border border-white/10">
-                <div className="w-2 h-2 rounded-full bg-primary animate-pulse shadow-[0_0_10px_#2D4F3C]" />
+                <div className="w-2 h-2 rounded-full bg-primary animate-pulse shadow-[0_0_10px_#5A8D6E]" />
                 <span className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/70">
                   {getGreeting()} • {user?.name.split(' ')[0]}
                 </span>
@@ -193,7 +193,7 @@ export function Dashboard() {
                     cy="50%"
                     r="42%"
                     fill="transparent"
-                    stroke="#2D4F3C"
+                    stroke="#5A8D6E"
                     strokeWidth="10"
                     strokeLinecap="round"
                     initial={{ strokeDasharray: "264 264", strokeDashoffset: 264 }}

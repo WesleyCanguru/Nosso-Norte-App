@@ -57,8 +57,8 @@ const AREAS = [
 
 const UNITS = ["vezes", "km", "minutos", "litros", "kcal", "páginas", "horas"];
 const COLOR_OPTIONS = [
-  "#2D4F3C", // North Green (Secondary)
-  "#4A352F", // Brown (Primary)
+  "#5A8D6E", // Lightened North Green
+  "#4A352F", // Brown
   "#A66E6E", // Muted Red
   "#B38E5D", // Gold/Ocher
   "#5D6D7E", // Slate Blue
@@ -88,7 +88,7 @@ export function Metas() {
     daily_goal: 1,
     unit: 'vezes',
     category: 'Saúde',
-    color: '#2D4F3C'
+    color: '#5A8D6E'
   });
 
   useEffect(() => {
@@ -243,7 +243,7 @@ export function Metas() {
       motivation: '',
       description: '',
       category: 'Saúde',
-      color: '#2D4F3C'
+      color: '#5A8D6E'
     });
   };
 

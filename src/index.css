@@ -12,8 +12,8 @@
   --color-surface-hover: #E9E5DE;
   --color-surface-border: rgba(45, 79, 60, 0.1);
   
-  --color-primary: #2D4F3C; /* Forest Mat Green */
-  --color-primary-dark: #1E3629; 
+  --color-primary: #5A8D6E; /* Lightened Forest Green for better contrast */
+  --color-primary-dark: #3F634D; 
   --color-secondary: #4A352F; /* Roasted Espresso Brown */
   --color-accent: #C68A53; /* Cork / Ochre */
   

@@ -142,8 +142,8 @@ export function Estatisticas() {
             <AreaChart data={chartData}>
               <defs>
                 <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#2D4F3C" stopOpacity={0.1}/>
-                  <stop offset="95%" stopColor="#2D4F3C" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#5A8D6E" stopOpacity={0.1}/>
+                  <stop offset="95%" stopColor="#5A8D6E" stopOpacity={0}/>
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E2D9" strokeOpacity={0.5} />
@@ -167,7 +167,7 @@ export function Estatisticas() {
               <Area 
                 type="monotone" 
                 dataKey="value" 
-                stroke="#2D4F3C" 
+                stroke="#5A8D6E" 
                 strokeWidth={4}
                 fillOpacity={1} 
                 fill="url(#colorValue)" 
