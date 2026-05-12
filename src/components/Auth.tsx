@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Button } from './Button';
-import { KeyRound, LogIn } from 'lucide-react';
+import { KeyRound, LogIn, ShieldCheck } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export const Auth = ({ onLogin }: { onLogin: (user: { name: string }) => void }) => {
   const [key, setKey] = useState('');
+  const [isHovered, setIsHovered] = useState(false);
 
   const handleAccess = (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,41 +25,82 @@ export const Auth = ({ onLogin }: { onLogin: (user: { name: string }) => void })
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-neutral-100 p-4">
-      <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl w-full max-w-md border border-neutral-200">
-        <div className="flex justify-center mb-8">
-          <div className="w-20 h-20 bg-emerald-50 rounded-3xl flex items-center justify-center text-emerald-600 shadow-inner">
-            <KeyRound className="w-10 h-10" />
+    <div className="flex flex-col items-center justify-center min-h-screen bg-background relative overflow-hidden px-6">
+      {/* Decorative Elements */}
+      <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-primary/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/4" />
+      <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-accent/5 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/4" />
+
+      <div 
+        className={cn(
+          "w-full max-w-md relative z-10 transition-all duration-1000",
+          isHovered ? "scale-[1.01]" : "scale-100"
+        )}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        <div className="bg-surface border border-surface-border p-12 md:p-16 rounded-[4rem] shadow-3d relative overflow-hidden">
+          {/* Subtle logo bg */}
+          <div className="absolute -right-20 -top-20 opacity-[0.02] rotate-12 pointer-events-none">
+            <KeyRound className="w-96 h-96" />
           </div>
-        </div>
-        
-        <h1 className="text-3xl font-serif font-bold text-neutral-900 mb-2 text-center">12 Week Challenge</h1>
-        <p className="text-neutral-500 text-center mb-10 text-sm">Digite sua chave de acesso pessoal</p>
-        
-        <form onSubmit={handleAccess} className="space-y-6">
-          <div>
-            <label className="block text-xs font-bold text-neutral-400 uppercase tracking-[0.2em] mb-3 ml-1">Chave de Acesso</label>
-            <input
-              type="password"
-              value={key}
-              onChange={(e) => setKey(e.target.value)}
-              className="w-full px-6 py-4 rounded-2xl border border-neutral-200 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all text-center text-2xl tracking-[0.3em] font-mono"
-              placeholder="••••••••"
-              required
-            />
+
+          <div className="flex justify-center mb-12">
+            <div className="relative group">
+              <div className="absolute -inset-4 bg-primary/10 rounded-[2.5rem] blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+              <div className="w-20 h-20 bg-primary/5 border border-primary/10 rounded-3xl flex items-center justify-center text-primary relative z-10 shadow-sm rotate-3 group-hover:rotate-0 transition-transform duration-700">
+                <KeyRound className="w-10 h-10" />
+              </div>
+            </div>
           </div>
           
-          <Button
-            type="submit"
-            className="w-full bg-emerald-600 text-white hover:bg-emerald-700 py-7 rounded-2xl text-xl font-bold shadow-xl shadow-emerald-600/20 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
-          >
-            <LogIn className="w-6 h-6" />
-            Entrar no Sistema
-          </Button>
-        </form>
-        
-        <div className="mt-10 pt-8 border-t border-neutral-100 text-center">
-          <p className="text-xs text-neutral-400 font-medium">Acesso restrito e privado</p>
+          <div className="text-center space-y-4 mb-14">
+            <h1 className="oryzo-logo text-4xl tracking-[-0.08em] leading-none">Nosso Norte</h1>
+            <div className="flex items-center justify-center gap-3">
+              <span className="h-[1px] w-8 bg-surface-border" />
+              <p className="text-[10px] font-bold text-text-muted uppercase tracking-[0.4em] opacity-60">Architects of Time</p>
+              <span className="h-[1px] w-8 bg-surface-border" />
+            </div>
+          </div>
+          
+          <form onSubmit={handleAccess} className="space-y-10">
+            <div className="space-y-4">
+              <label className="block text-[10px] font-bold text-text-muted uppercase tracking-[0.4em] text-center mb-4">
+                Chave de Acesso / 0&bull;0
+              </label>
+              <div className="relative">
+                <input
+                  type="password"
+                  value={key}
+                  onChange={(e) => setKey(e.target.value)}
+                  className="w-full bg-background border border-surface-border rounded-3xl px-8 py-8 outline-none focus:border-primary focus:shadow-2xl focus:shadow-primary/5 transition-all text-center text-4xl tracking-[0.4em] font-mono placeholder:text-surface-border/50"
+                  placeholder="••••••••"
+                  required
+                />
+                <div className="absolute right-6 top-1/2 -translate-y-1/2 opacity-20">
+                  <ShieldCheck className="w-5 h-5 text-primary" />
+                </div>
+              </div>
+            </div>
+            
+            <Button
+              type="submit"
+              className="w-full bg-secondary text-white h-20 rounded-3xl text-[11px] font-bold uppercase tracking-[0.3em] shadow-2xl shadow-secondary/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-4 group"
+            >
+              <LogIn className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              Consolidar Entrada
+            </Button>
+          </form>
+          
+          <div className="mt-14 pt-8 border-t border-surface-border/50 flex items-center justify-center gap-4">
+            <div className="w-1.5 h-1.5 rounded-full bg-accent/30" />
+            <p className="text-[9px] font-bold text-text-muted uppercase tracking-[0.5em] opacity-40 italic">Acesso Privado &bull; Criptografado</p>
+            <div className="w-1.5 h-1.5 rounded-full bg-accent/30" />
+          </div>
+        </div>
+
+        {/* Brand footer */}
+        <div className="mt-8 text-center">
+          <span className="text-[8px] font-bold text-text-muted uppercase tracking-[0.4em] opacity-30">Nosso Norte OS / Build v1.02</span>
         </div>
       </div>
     </div>

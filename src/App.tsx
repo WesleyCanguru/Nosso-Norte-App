@@ -8,12 +8,12 @@ import { useEffect, useState } from "react";
 import { supabase, supabaseUrl, supabaseAnonKey } from "./lib/supabase";
 import { Layout } from "./components/Layout";
 import { Dashboard } from "./pages/Dashboard";
-import { Hoje } from "./pages/Hoje";
-import { Corpo } from "./pages/Corpo";
-import { Alma } from "./pages/Alma";
-import { Treinos } from "./pages/Treinos";
-import { Agencia } from "./pages/Agencia";
+import { Habitos } from "./pages/Habitos";
 import { Metas } from "./pages/Metas";
+import { DDD } from "./pages/DDD";
+import { Pomodoro } from "./pages/Pomodoro";
+import { Estatisticas } from "./pages/Estatisticas";
+import { Bau } from "./pages/Bau";
 import { Auth } from "./components/Auth";
 import { SetupRequired } from "./components/SetupRequired";
 import { Session } from "@supabase/supabase-js";
@@ -64,12 +64,12 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Layout user={user} onLogout={() => setUser(null)} />}>
           <Route index element={<Dashboard />} />
-          <Route path="check-in" element={<Hoje />} />
-          <Route path="corpo" element={<Corpo />} />
-          <Route path="alma" element={<Alma />} />
-          <Route path="treinos" element={<Treinos />} />
-          <Route path="agencia" element={<Agencia />} />
           <Route path="metas" element={<Metas />} />
+          <Route path="habitos" element={<Habitos />} />
+          <Route path="ddd" element={<DDD />} />
+          <Route path="pomodoro" element={<Pomodoro />} />
+          <Route path="estatisticas" element={<Estatisticas />} />
+          <Route path="bau" element={<Bau />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

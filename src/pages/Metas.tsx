@@ -1,1388 +1,557 @@
-import { useState, useEffect, useRef } from "react";
-import confetti from "canvas-confetti";
+import { useState, useEffect } from "react";
 import { 
+  Plus, 
+  Trash2, 
+  Pencil, 
   Target, 
-  Calendar, 
-  Activity, 
-  Brain, 
-  Briefcase, 
-  Compass,
-  CheckCircle2,
-  Plus,
-  Trash2,
-  Edit2,
-  Loader2,
-  TableProperties,
-  LayoutDashboard,
+  Heart, 
+  Zap, 
   Check,
-  X
+  ChevronRight,
+  TrendingUp,
+  Scale,
+  Brain,
+  Droplets,
+  Loader2,
+  MoreVertical
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Modal } from "@/components/Modal";
-import { supabase } from "@/lib/supabase";
 import { useUser } from "@/hooks/useUser";
+import { useUserGoals } from "@/hooks/useUserGoals";
+import { supabase } from "@/lib/supabase";
+import { cn } from "@/lib/utils";
+import { motion, AnimatePresence } from "motion/react";
+import { Modal } from "@/components/Modal";
+import { Button } from "@/components/Button";
 
-import { getCycleInfo } from "@/lib/cycle";
-
-// Tipos para o Rastreador
 type Habit = {
   id: string;
   name: string;
-  frequency_per_week: number;
-  type: 'check' | 'numeric' | 'negative';
-  target_value: number;
-  unit: string;
-  color: string;
   emoji: string;
-  area: 'alma' | 'corpo' | 'agencia';
-  goal_id?: string;
+  area: 'alma' | 'corpo' | 'foco';
+  type: 'check' | 'numeric';
+  frequency_per_week: number;
+  daily_goal: number;
+  unit: string;
 };
 
-type HabitLog = {
-  habit_id: string;
-  date: string;
-  value: number;
-  completed: boolean;
-};
+const AREAS = [
+  { id: 'alma', name: 'Alma', emoji: '🤎', color: 'text-secondary', bg: 'bg-secondary/5' },
+  { id: 'corpo', name: 'Corpo', emoji: '🌿', color: 'text-primary', bg: 'bg-primary/5' },
+  { id: 'foco', name: 'Trabalho', emoji: '🪵', color: 'text-accent', bg: 'bg-accent/5' }
+];
 
-const COMMON_EMOJIS = ["🎯", "💪", "💧", "🥗", "🧘", "📚", "💻", "💰", "🏃", "🍎", "🥛", "🛌", "🚶", "🤝", "✍️", "🧠", "🔋", "📈"];
-const COMMON_UNITS = ["ml", "L", "kg", "g", "min", "h", "km", "m", "un", "vezes", "kcal"];
+const HABIT_TYPES = [
+  { id: 'check', name: 'Check-in', description: 'Simples concluir' },
+  { id: 'numeric', name: 'Numérico', description: 'Metas como km, litros...' }
+];
+
+const EMOJI_OPTIONS = ["💪", "💧", "🧘", "📖", "🥦", "🏃", "⚡", "🔋", "🌙", "💻", "🧠", "🎯", "🍎", "🚶", "🔇"];
+
+const UNITS = ["vezes", "km", "minutos", "litros", "kcal", "páginas", "horas"];
 
 export function Metas() {
   const user = useUser();
-  
-  // Configuração do Ciclo de 12 Semanas
-  const { startDate, endDate, totalDays, currentDay, currentWeek, cycleProgress } = getCycleInfo();
-  
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');
-  };
-  
-  const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'macro' | 'tracker'>('macro');
-  const [activeHabitTab, setActiveHabitTab] = useState<'pessoal' | 'agencia'>('pessoal');
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isHabitModalOpen, setIsHabitModalOpen] = useState(false);
-  const [isDeleteGoalModalOpen, setIsDeleteGoalModalOpen] = useState(false);
-  const [isDeleteHabitModalOpen, setIsDeleteHabitModalOpen] = useState(false);
-  const [goalToDelete, setGoalToDelete] = useState<string | null>(null);
-  const [habitToDelete, setHabitToDelete] = useState<string | null>(null);
-  const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
-  const [editingHabitId, setEditingHabitId] = useState<string | null>(null);
-  
-  // Dados Macro
-  const [goals, setGoals] = useState<{ corpo: any[], alma: any[], agencia: any[] }>({ corpo: [], alma: [], agencia: [] });
-  const [newGoal, setNewGoal] = useState({
-    title: "",
-    category: "Corpo",
-    target_value: "",
-    unit: "",
-    start_value: "",
-    current_value: ""
-  });
-
-  // Dados Rastreador
+  const { goals, updateGoals, loading: goalsLoading } = useUserGoals();
   const [habits, setHabits] = useState<Habit[]>([]);
-  const [newHabit, setNewHabit] = useState<Omit<Habit, 'id'>>({
-    name: "",
-    frequency_per_week: 7,
+  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
+  const [activeTab, setActiveTab] = useState<'pessoal' | 'foco'>('pessoal');
+
+  // Form State
+  const [formData, setFormData] = useState<Partial<Habit>>({
+    name: '',
+    emoji: '💪',
+    area: 'corpo',
     type: 'check',
-    target_value: 0,
-    unit: "",
-    color: "blue",
-    emoji: "🎯",
-    area: "alma",
-    goal_id: ""
+    frequency_per_week: 7,
+    daily_goal: 1,
+    unit: 'vezes'
   });
-  const [weeklyLogs, setWeeklyLogs] = useState<Record<string, Record<string, HabitLog>>>({}); // habit_id -> date -> log
-  const [weekDates, setWeekDates] = useState<Date[]>([]);
-  const celebratedHabits = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (user) {
-      fetchGoals();
-      fetchTrackerData();
+      fetchHabits();
     }
   }, [user]);
 
-  // Configura as datas da semana atual
-  useEffect(() => {
-    const dates = [];
-    
-    if (currentWeek === 1) {
-      // Semana 1: Quinta (02/04) a Domingo (05/04)
-      for (let i = 0; i < 4; i++) {
-        const date = new Date(startDate);
-        date.setDate(startDate.getDate() + i);
-        dates.push(date);
-      }
-    } else {
-      // Demais semanas: Segunda a Domingo
-      // Calcula a segunda-feira da semana atual
-      // Semana 2 começa no dia 5 (startDate + 4)
-      const weekStartOffset = 4 + (currentWeek - 2) * 7;
-      const monday = new Date(startDate);
-      monday.setDate(startDate.getDate() + weekStartOffset);
-
-      for (let i = 0; i < 7; i++) {
-        const date = new Date(monday);
-        date.setDate(monday.getDate() + i);
-        dates.push(date);
-      }
-    }
-    setWeekDates(dates);
-  }, [currentWeek, startDate]);
-
-  const fetchGoals = async () => {
+  const fetchHabits = async () => {
     if (!user) return;
     try {
       const { data, error } = await supabase
-        .from('goals')
-        .select('*')
-        .eq('user_name', user.name);
-
-      if (data) {
-        const grouped = data.reduce((acc: any, goal: any) => {
-          const cat = goal.category.toLowerCase();
-          if (!acc[cat]) acc[cat] = [];
-          acc[cat].push({
-            id: goal.id,
-            title: goal.title,
-            category: goal.category,
-            current: goal.current_value,
-            target: goal.target_value,
-            unit: goal.unit,
-            start: goal.start_value || 0,
-            inverse: goal.inverse || false
-          });
-          return acc;
-        }, { corpo: [], alma: [], agencia: [] });
-        setGoals(grouped);
-      }
-    } catch (error) {
-      console.error("Erro ao buscar metas:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchTrackerData = async () => {
-    if (!user) return;
-    try {
-      // Busca Hábitos
-      const { data: habitsData, error: habitsError } = await supabase
         .from('habits')
         .select('*')
         .eq('user_name', user.name)
         .order('created_at', { ascending: true });
 
-      if (habitsError) throw habitsError;
-      setHabits(habitsData || []);
-
-      // Define a data inicial para buscar os logs (menor data entre o início do ciclo e a segunda-feira atual)
-      const todayForFetch = new Date();
-      const dayOfWeek = todayForFetch.getDay();
-      const diffToMonday = todayForFetch.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-      const monday = new Date(todayForFetch);
-      monday.setDate(diffToMonday);
-      
-      const fetchStartDate = startDate < monday ? startDate : monday;
-      const localFetchDate = new Date(fetchStartDate.getTime() - (fetchStartDate.getTimezoneOffset() * 60000));
-
-      // Busca Logs
-      const { data: logsData, error: logsError } = await supabase
-        .from('habit_logs')
-        .select('*')
-        .eq('user_name', user.name)
-        .gte('date', localFetchDate.toISOString().split('T')[0]);
-
-      if (logsError) throw logsError;
-
-      // Organiza logs: { habit_id: { 'YYYY-MM-DD': log } }
-      const logsMap: Record<string, Record<string, HabitLog>> = {};
-      logsData?.forEach(log => {
-        if (!logsMap[log.habit_id]) logsMap[log.habit_id] = {};
-        logsMap[log.habit_id][log.date] = log;
-      });
-      setWeeklyLogs(logsMap);
-
-    } catch (error) {
-      console.error("Erro ao buscar dados do rastreador:", error);
-    }
-  };
-
-  const handleAddGoal = async () => {
-    if (!newGoal.title || !newGoal.target_value || !user) return;
-    try {
-      if (editingGoalId) {
-        const { error } = await supabase
-          .from('goals')
-          .update({
-            title: newGoal.title,
-            category: newGoal.category,
-            target_value: parseFloat(newGoal.target_value),
-            current_value: parseFloat(newGoal.current_value || "0"),
-            start_value: parseFloat(newGoal.start_value || "0"),
-            unit: newGoal.unit
-          })
-          .eq('id', editingGoalId);
-
-        if (error) throw error;
-        setEditingGoalId(null);
-      } else {
-        const { error } = await supabase
-          .from('goals')
-          .insert([{
-            user_name: user.name,
-            title: newGoal.title,
-            category: newGoal.category,
-            target_value: parseFloat(newGoal.target_value),
-            current_value: parseFloat(newGoal.current_value || newGoal.start_value || "0"),
-            start_value: parseFloat(newGoal.start_value || "0"),
-            unit: newGoal.unit
-          }]);
-
-        if (error) throw error;
-      }
-      
-      setNewGoal({ title: "", category: "Corpo", target_value: "", unit: "", start_value: "", current_value: "" });
-      fetchGoals();
-    } catch (error) {
-      console.error("Erro ao salvar meta:", error);
-      alert("Erro ao salvar meta.");
-    }
-  };
-
-  const handleEditGoalClick = (goal: any) => {
-    setEditingGoalId(goal.id);
-    setNewGoal({
-      title: goal.title,
-      category: goal.category || "Corpo", // Fallback if category is missing in the object
-      target_value: goal.target.toString(),
-      unit: goal.unit,
-      start_value: (goal.start || 0).toString(),
-      current_value: (goal.current || 0).toString()
-    });
-    setIsEditModalOpen(true);
-  };
-
-  const handleDeleteGoal = async (id: string) => {
-    setGoalToDelete(id);
-    setIsDeleteGoalModalOpen(true);
-  };
-
-  const confirmDeleteGoal = async () => {
-    if (!goalToDelete) return;
-    try {
-      const { error } = await supabase
-        .from('goals')
-        .delete()
-        .eq('id', goalToDelete);
-
       if (error) throw error;
-      fetchGoals();
-      setIsDeleteGoalModalOpen(false);
-      setGoalToDelete(null);
+      setHabits(data || []);
     } catch (error) {
-      console.error("Erro ao deletar meta:", error);
+      console.error("Error fetching habits:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleEditHabitClick = (habit: Habit) => {
-    setEditingHabitId(habit.id);
-    setNewHabit({
-      name: habit.name,
-      frequency_per_week: habit.frequency_per_week,
-      type: habit.type,
-      target_value: habit.target_value,
-      unit: habit.unit,
-      color: habit.color || 'blue',
-      emoji: habit.emoji || '🎯',
-      area: habit.area || 'alma',
-      goal_id: habit.goal_id || ""
-    });
-    setIsHabitModalOpen(true);
-  };
+  const saveHabit = async () => {
+    if (!user || !formData.name) return;
 
-  const handleDeleteHabit = async (id: string) => {
-    setHabitToDelete(id);
-    setIsDeleteHabitModalOpen(true);
-  };
-
-  const confirmDeleteHabit = async () => {
-    if (!habitToDelete) return;
     try {
-      const { error } = await supabase
-        .from('habits')
-        .delete()
-        .eq('id', habitToDelete);
-
-      if (error) throw error;
-      fetchTrackerData();
-      setIsDeleteHabitModalOpen(false);
-      setHabitToDelete(null);
-    } catch (error) {
-      console.error("Erro ao deletar hábito:", error);
-    }
-  };
-
-  const handleAddHabit = async () => {
-    if (!newHabit.name || !user) return;
-    try {
-      if (editingHabitId) {
+      if (editingHabit) {
         const { error } = await supabase
           .from('habits')
           .update({
-            name: newHabit.name,
-            frequency_per_week: newHabit.frequency_per_week,
-            type: newHabit.type,
-            target_value: newHabit.target_value,
-            unit: newHabit.unit,
-            color: newHabit.color,
-            emoji: newHabit.emoji,
-            area: newHabit.area,
-            goal_id: newHabit.goal_id || null
+            ...formData,
+            user_name: user.name
           })
-          .eq('id', editingHabitId);
-
+          .eq('id', editingHabit.id);
         if (error) throw error;
-        setEditingHabitId(null);
       } else {
         const { error } = await supabase
           .from('habits')
           .insert([{
-            user_name: user.name,
-            name: newHabit.name,
-            frequency_per_week: newHabit.frequency_per_week,
-            type: newHabit.type,
-            target_value: newHabit.target_value,
-            unit: newHabit.unit,
-            color: newHabit.color,
-            emoji: newHabit.emoji,
-            area: newHabit.area,
-            goal_id: newHabit.goal_id || null
+            ...formData,
+            user_name: user.name
           }]);
-
         if (error) throw error;
       }
-      
-      setNewHabit({ name: "", frequency_per_week: 7, type: 'check', target_value: 0, unit: "", color: "blue", emoji: "🎯", area: "alma", goal_id: "" });
-      setIsHabitModalOpen(false);
-      fetchTrackerData();
+
+      fetchHabits();
+      setIsModalOpen(false);
+      setEditingHabit(null);
+      resetForm();
     } catch (error) {
-      console.error("Erro ao salvar hábito:", error);
+      console.error("Error saving habit:", error);
     }
   };
 
-  const getLogForDate = (habitId: string, date: Date) => {
-    // Ajuste de timezone
-    const localDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
-    const dateStr = localDate.toISOString().split('T')[0];
-    return weeklyLogs[habitId]?.[dateStr];
-  };
-
-  const calculateHabitWeeklyPercentage = (habit: Habit) => {
-    let completedDays = 0;
-    const today = new Date();
-    today.setHours(23, 59, 59, 999); // Fim do dia de hoje
-
-    weekDates.forEach(date => {
-      const log = getLogForDate(habit.id, date);
-      const isFuture = date > today;
-
-      if (habit.type === 'negative') {
-        // Para negativos, sem log = sucesso. Mas não conta dias futuros.
-        if (!isFuture && (!log || log.completed)) completedDays++;
-      } else {
-        if (log?.completed) completedDays++;
-      }
-    });
-    
-    // Calcula a porcentagem baseada na frequência desejada (max 100%)
-    let targetFrequency = habit.frequency_per_week;
-    
-    // Regra especial para a Semana 1
-    if (currentWeek === 1) {
-      if (habit.frequency_per_week >= 6) {
-        // Para hábitos de 6 ou 7 dias, a meta na semana 1 (4 dias) é 4.
-        targetFrequency = 4;
-      } else {
-        // Para hábitos de 5 dias ou menos, a meta continua sendo a mesma, 
-        // mas limitada ao número de dias da semana (4).
-        targetFrequency = Math.min(4, habit.frequency_per_week);
-      }
+  const deleteHabit = async (id: string) => {
+    if (!confirm("Excluir este hábito irreparavelmente?")) return;
+    try {
+      await supabase.from('habit_logs').delete().eq('habit_id', id);
+      const { error } = await supabase.from('habits').delete().eq('id', id);
+      if (error) throw error;
+      setHabits(prev => prev.filter(h => h.id !== id));
+    } catch (error) {
+      console.error("Error deleting habit:", error);
     }
-
-    const percentage = Math.min(100, Math.round((completedDays / targetFrequency) * 100));
-    return percentage;
   };
 
-  const calculateOverallScore = () => {
-    if (habits.length === 0 || currentDay === 0) return 0;
-    
-    let totalHabitScores = 0;
-    
-    habits.forEach(habit => {
-      let completedDays = 0;
-      let expectedDays = 0;
-
-      if (currentWeek === 1) {
-        if (habit.frequency_per_week >= 6) {
-          expectedDays = currentDay;
-        } else {
-          const week1Target = Math.min(4, habit.frequency_per_week);
-          expectedDays = Math.max(1, Math.round((week1Target / 4) * currentDay));
-        }
-      } else {
-        expectedDays = Math.max(1, Math.round((habit.frequency_per_week / 7) * currentDay));
-      }
-      
-      for (let d = 0; d < currentDay; d++) {
-        const date = new Date(startDate);
-        date.setDate(startDate.getDate() + d);
-        const dateStr = date.toISOString().split('T')[0];
-        const log = weeklyLogs[habit.id]?.[dateStr];
-        
-        if (habit.type === 'negative') {
-          if (!log || log.completed) completedDays++;
-        } else {
-          if (log?.completed) completedDays++;
-        }
-      }
-      
-      const pct = Math.min(100, Math.round((completedDays / expectedDays) * 100));
-      totalHabitScores += pct;
-    });
-    
-    return Math.round(totalHabitScores / habits.length);
+  const handleEdit = (habit: Habit) => {
+    setEditingHabit(habit);
+    setFormData(habit);
+    setIsModalOpen(true);
   };
 
-  const weeklyScores = habits.map(calculateHabitWeeklyPercentage);
-  const weeklyScore = habits.length ? Math.round(weeklyScores.reduce((a, b) => a + b, 0) / habits.length) : 0;
-  const overallScore = calculateOverallScore();
-
-  // Efeito para soltar fogos quando bater 85%
-  useEffect(() => {
-    if (habits.length === 0 || Object.keys(weeklyLogs).length === 0) return;
-    
-    let fired = false;
-    habits.forEach(habit => {
-      const pct = calculateHabitWeeklyPercentage(habit);
-      if (pct >= 85 && !celebratedHabits.current.has(habit.id)) {
-        celebratedHabits.current.add(habit.id);
-        fired = true;
-      }
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      emoji: '💪',
+      area: 'corpo',
+      type: 'check',
+      frequency_per_week: 7,
+      daily_goal: 1,
+      unit: 'vezes'
     });
+  };
 
-    if (fired) {
-      confetti({
-        particleCount: 150,
-        spread: 80,
-        origin: { y: 0.6 },
-        colors: ['#10b981', '#34d399', '#6ee7b7', '#fcd34d']
-      });
+  const filteredHabits = habits.filter(h => {
+    if (activeTab === 'pessoal') {
+      return h.area === 'alma' || h.area === 'corpo';
     }
-  }, [weeklyLogs, habits, weekDates]);
+    return h.area === 'foco';
+  });
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
+  if (goalsLoading || loading) {
+    return <div className="flex items-center justify-center min-h-[50vh]"><Loader2 className="animate-spin text-primary w-8 h-8"/></div>;
   }
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-500 pb-10 max-w-6xl mx-auto">
-      {/* Header & View Toggle */}
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <div className="text-sm font-bold text-text-muted uppercase tracking-widest mb-2">1 Ano em 12 Semanas</div>
-          <h1 className="text-4xl md:text-5xl font-serif font-semibold tracking-tight text-primary">Metas & Execução</h1>
-        </div>
-        
-        <div className="flex bg-surface border border-surface-border p-1 rounded-2xl shadow-sm hidden">
-          <button 
-            onClick={() => setViewMode('macro')}
-            className={cn(
-              "flex items-center gap-2 px-6 py-2.5 rounded-xl font-medium transition-all",
-              viewMode === 'macro' ? "bg-primary text-white shadow-md" : "text-text-muted hover:text-primary"
-            )}
-          >
-            <LayoutDashboard className="w-4 h-4" />
-            Visão Macro
-          </button>
-          <button 
-            onClick={() => setViewMode('tracker')}
-            className={cn(
-              "flex items-center gap-2 px-6 py-2.5 rounded-xl font-medium transition-all",
-              viewMode === 'tracker' ? "bg-primary text-white shadow-md" : "text-text-muted hover:text-primary"
-            )}
-          >
-            <TableProperties className="w-4 h-4" />
-            Rastreador
-          </button>
-        </div>
-      </header>
-
-      {viewMode === 'macro' || true ? (
-        /* ================= VISÃO MACRO ================= */
-        <div className="space-y-10 animate-in slide-in-from-left-4 duration-300">
-          {/* Master Progress & Vision */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Cycle Progress */}
-            <div className="lg:col-span-2 bg-surface border border-surface-border rounded-3xl p-8 shadow-sm flex flex-col justify-center">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-background border border-surface-border rounded-xl">
-                    <Calendar className="w-5 h-5 text-primary" />
-                  </div>
-                  <h2 className="font-serif text-2xl font-semibold text-secondary">Progresso do Ciclo</h2>
-                </div>
-                <div className="text-right">
-                  <span className="text-3xl font-serif font-bold text-primary">Dia {currentDay}</span>
-                  <span className="text-text-muted font-mono ml-2">/ {totalDays}</span>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm font-mono text-text-muted">
-                  <span className="capitalize">Início: {formatDate(startDate)}</span>
-                  <span className="capitalize">Fim: {formatDate(endDate)}</span>
-                </div>
-                <div className="h-4 w-full bg-background rounded-full overflow-hidden border border-surface-border relative">
-                  <div 
-                    className="absolute top-0 left-0 h-full bg-primary transition-all duration-1000 ease-out"
-                    style={{ width: `${cycleProgress}%` }}
-                  />
-                </div>
-                <div className="text-right text-xs font-bold text-primary uppercase tracking-widest mt-2">
-                  {cycleProgress}% Concluído
-                </div>
-              </div>
-            </div>
-
-            {/* The Vision */}
-            <div className="bg-primary text-white rounded-3xl p-8 shadow-md relative overflow-hidden flex flex-col justify-center">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/4" />
-              <div className="flex items-center gap-3 mb-4 relative z-10">
-                <Compass className="w-6 h-6 text-white/50" />
-                <h2 className="font-serif text-xl font-semibold">Tema do Ciclo</h2>
-              </div>
-              <p className="text-white/90 text-2xl font-serif leading-snug relative z-10">
-                "Fundação de Ferro"
-              </p>
-              <p className="text-white/70 font-light mt-3 relative z-10 text-sm">
-                Foco total em construir a base: saúde inegociável, rotina blindada e previsibilidade de caixa.
-              </p>
-            </div>
-          </div>
-
-          {/* Pillars Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Corpo */}
-            <div className="space-y-6">
-              <div className="flex items-center justify-between pb-4 border-b border-surface-border">
-                <div className="flex items-center gap-3">
-                  <Activity className="w-5 h-5 text-text-muted" />
-                  <h3 className="font-serif text-xl font-semibold text-secondary">Corpo</h3>
-                </div>
-                <button onClick={() => setIsEditModalOpen(true)} className="text-primary hover:bg-primary/10 p-1.5 rounded-lg transition-colors"><Plus className="w-4 h-4"/></button>
-              </div>
-              <div className="space-y-4">
-                {goals.corpo.map(goal => (
-                  <GoalCard key={goal.id} goal={goal} color="bg-emerald-500" onEdit={handleEditGoalClick} onDelete={handleDeleteGoal} />
-                ))}
-                {goals.corpo.length === 0 && <p className="text-sm text-text-muted italic">Nenhuma meta definida.</p>}
-              </div>
-            </div>
-
-            {/* Alma */}
-            <div className="space-y-6">
-              <div className="flex items-center justify-between pb-4 border-b border-surface-border">
-                <div className="flex items-center gap-3">
-                  <Brain className="w-5 h-5 text-text-muted" />
-                  <h3 className="font-serif text-xl font-semibold text-secondary">Alma</h3>
-                </div>
-                <button onClick={() => setIsEditModalOpen(true)} className="text-primary hover:bg-primary/10 p-1.5 rounded-lg transition-colors"><Plus className="w-4 h-4"/></button>
-              </div>
-              <div className="space-y-4">
-                {goals.alma.map(goal => (
-                  <GoalCard key={goal.id} goal={goal} color="bg-blue-500" onEdit={handleEditGoalClick} onDelete={handleDeleteGoal} />
-                ))}
-                {goals.alma.length === 0 && <p className="text-sm text-text-muted italic">Nenhuma meta definida.</p>}
-              </div>
-            </div>
-
-            {/* Agência */}
-            <div className="space-y-6">
-              <div className="flex items-center justify-between pb-4 border-b border-surface-border">
-                <div className="flex items-center gap-3">
-                  <Briefcase className="w-5 h-5 text-text-muted" />
-                  <h3 className="font-serif text-xl font-semibold text-secondary">Agência</h3>
-                </div>
-                <button onClick={() => setIsEditModalOpen(true)} className="text-primary hover:bg-primary/10 p-1.5 rounded-lg transition-colors"><Plus className="w-4 h-4"/></button>
-              </div>
-              <div className="space-y-4">
-                {goals.agencia.map(goal => (
-                  <GoalCard key={goal.id} goal={goal} color="bg-orange-500" onEdit={handleEditGoalClick} onDelete={handleDeleteGoal} />
-                ))}
-                {goals.agencia.length === 0 && <p className="text-sm text-text-muted italic">Nenhuma meta definida.</p>}
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : (
-        /* ================= RASTREADOR SEMANAL ================= */
-        <div className="bg-surface border border-surface-border rounded-3xl shadow-sm overflow-hidden animate-in slide-in-from-right-4 duration-300">
-          <div className="p-6 md:p-8 border-b border-surface-border bg-background/50 flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div>
-              <h2 className="font-serif text-2xl font-semibold text-secondary">Rastreador de Hábitos</h2>
-              <p className="text-text-muted text-sm mt-1">Acompanhamento da semana atual. Preencha na aba "Hoje".</p>
-            </div>
-            
-            <div className="flex flex-wrap gap-4 items-center">
-              <button 
-                onClick={() => {
-                  setEditingHabitId(null);
-                  setNewHabit({ name: "", frequency_per_week: 7, type: 'check', target_value: 0, unit: "" });
-                  setIsHabitModalOpen(true);
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors shadow-sm"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Adicionar Hábito</span>
-              </button>
-
-              <div className="flex flex-col items-center justify-center px-4 py-2 bg-surface border border-surface-border rounded-xl">
-                <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Semana</span>
-                <span className="text-lg font-serif font-bold text-primary">{currentWeek} <span className="text-sm text-text-muted font-sans">/ 12</span></span>
-              </div>
-              
-              <div className="flex flex-col items-center justify-center px-4 py-2 bg-surface border border-surface-border rounded-xl">
-                <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Score Semanal</span>
-                <span className={cn("text-lg font-serif font-bold", weeklyScore >= 85 ? "text-emerald-600" : "text-primary")}>
-                  {weeklyScore}%
-                </span>
-              </div>
-
-              <div className="flex flex-col items-center justify-center px-4 py-2 bg-surface border border-surface-border rounded-xl">
-                <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Score Geral</span>
-                <span className={cn("text-lg font-serif font-bold", overallScore >= 85 ? "text-emerald-600" : "text-primary")}>
-                  {overallScore}%
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[800px]">
-              <thead>
-                <tr className="bg-surface-hover/50 border-b border-surface-border">
-                  <th className="p-4 font-bold text-xs text-text-muted uppercase tracking-widest w-1/3">Ação Planejada (Hábito)</th>
-                  <th className="p-4 font-bold text-xs text-text-muted uppercase tracking-widest text-center w-24">Freq.</th>
-                  {weekDates.map((date, i) => {
-                    const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-                    const dayName = days[date.getDay()];
-                    return (
-                      <th key={i} className="p-4 font-bold text-xs text-text-muted uppercase tracking-widest text-center w-12">
-                        {dayName}
-                        <div className="text-[10px] font-normal mt-0.5 opacity-70">{date.getDate()}</div>
-                      </th>
-                    );
-                  })}
-                  <th className="p-4 font-bold text-xs text-text-muted uppercase tracking-widest text-center w-12">Score</th>
-                  <th className="p-4 font-bold text-xs text-text-muted uppercase tracking-widest text-center w-12">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-surface-border">
-                {habits.length === 0 ? (
-                  <tr>
-                    <td colSpan={10} className="p-8 text-center text-text-muted italic">
-                      Nenhum hábito cadastrado. Vá para a aba "Check-in" para adicionar.
-                    </td>
-                  </tr>
-                ) : (
-                  habits.map(habit => {
-                    const percentage = calculateHabitWeeklyPercentage(habit);
-                    
-                    return (
-                      <tr key={habit.id} className="hover:bg-surface-hover/30 transition-colors">
-                        <td className="p-4">
-                          <div className="font-medium text-secondary">{habit.name}</div>
-                          <div className="text-xs text-text-muted mt-0.5">
-                            {habit.type === 'numeric' ? `Meta: ${habit.target_value} ${habit.unit}` : habit.type === 'negative' ? 'Evitar' : 'Check diário'}
-                          </div>
-                        </td>
-                        <td className="p-4 text-center">
-                          <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-background border border-surface-border text-xs font-bold text-primary">
-                            {habit.frequency_per_week}x
-                          </span>
-                        </td>
-                        
-                        {/* Dias da Semana */}
-                        {weekDates.map((date, i) => {
-                          const log = getLogForDate(habit.id, date);
-                          let isSuccess = false;
-                          let isFailed = false;
-
-                          if (habit.type === 'negative') {
-                            isSuccess = !log || log.completed; // Sem log ou completed=true é sucesso
-                            isFailed = log && !log.completed; // Log com completed=false é falha
-                          } else {
-                            isSuccess = log?.completed || false;
-                          }
-
-                          // Não mostra falha/sucesso para dias futuros
-                          const isFuture = date > new Date();
-
-                          return (
-                            <td key={i} className="p-4 text-center">
-                              {isFuture ? (
-                                <div className="w-6 h-6 mx-auto rounded bg-surface-border/30" />
-                              ) : habit.type === 'numeric' && log ? (
-                                <div className={cn(
-                                  "text-xs font-mono font-bold px-2 py-1 rounded-md inline-block",
-                                  isSuccess ? "bg-emerald-100 text-emerald-700" : "bg-blue-50 text-blue-700"
-                                )}>
-                                  {log.value}<span className="text-[10px] opacity-70 font-normal ml-0.5">/{habit.target_value}</span>
-                                </div>
-                              ) : isSuccess ? (
-                                <div className="w-6 h-6 mx-auto rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
-                                  <Check className="w-4 h-4" />
-                                </div>
-                              ) : isFailed ? (
-                                <div className="w-6 h-6 mx-auto rounded-full bg-red-100 text-red-600 flex items-center justify-center">
-                                  <X className="w-4 h-4" />
-                                </div>
-                              ) : (
-                                <div className="w-6 h-6 mx-auto rounded-full border-2 border-surface-border" />
-                              )}
-                            </td>
-                          );
-                        })}
-
-                        {/* Porcentagem */}
-                        <td className="p-4 text-center">
-                          <div 
-                            className="inline-flex items-center justify-center px-3 py-1 rounded-lg text-sm font-bold transition-colors duration-500"
-                            style={{ 
-                              backgroundColor: `hsl(${Math.min(120, (percentage / 85) * 120)}, 80%, 90%)`,
-                              color: `hsl(${Math.min(120, (percentage / 85) * 120)}, 80%, 35%)`
-                            }}
-                          >
-                            {percentage}%
-                          </div>
-                        </td>
-
-                        {/* Ações */}
-                        <td className="p-4 text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            <button 
-                              onClick={() => handleEditHabitClick(habit)}
-                              className="p-1.5 text-text-muted hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button 
-                              onClick={() => handleDeleteHabit(habit.id)}
-                              className="p-1.5 text-text-muted hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Edição de Hábito */}
-      <Modal 
-        isOpen={isHabitModalOpen} 
-        onClose={() => setIsHabitModalOpen(false)}
-        title={editingHabitId ? "Editar Hábito" : "Novo Hábito"}
+    <div className="max-w-6xl mx-auto space-y-20 pb-32">
+      {/* Header Section */}
+      <motion.header 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="space-y-4"
       >
-        <div className="space-y-6">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-secondary">Nome do Hábito</label>
-            <input 
-              type="text"
-              value={newHabit.name}
-              onChange={(e) => setNewHabit({...newHabit, name: e.target.value})}
-              placeholder="Ex: Beber 3L de água"
-              className="w-full px-4 py-3 bg-background border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-            />
+        <div className="flex items-center gap-2 px-3 py-1 bg-primary/5 rounded-full border border-primary/10 w-fit">
+          <Target className="w-3 h-3 text-primary" />
+          <span className="text-[10px] font-bold text-primary uppercase tracking-[0.3em]">A Arqueologia do Futuro</span>
+        </div>
+        <h1 className="text-7xl md:text-8xl lg:text-9xl font-display font-bold text-secondary tracking-[-0.06em] leading-[0.85] uppercase">
+          Nossas<br/>Metas.
+        </h1>
+        <p className="text-text-muted text-xl max-w-lg font-light leading-relaxed pt-4">
+          Onde a intenção se torna arquitetura. Defina o seu destino e mapeie o caminho com precisão absoluta.
+        </p>
+      </motion.header>
+
+      {/* Numerical Goals Section */}
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+        {/* Corpo Block */}
+        <div className="space-y-10">
+          <div className="flex items-center gap-5">
+            <div className="w-14 h-14 bg-primary/10 rounded-[1.5rem] flex items-center justify-center">
+              <Heart className="w-7 h-7 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-3xl font-display font-bold text-secondary uppercase tracking-tight">Vigor & Templo</h2>
+              <p className="text-[10px] text-text-muted uppercase font-bold tracking-[0.3em]">CONDIÇÃO FÍSICA</p>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-3">
-              <label className="text-sm font-medium text-secondary">Escolha um Emoji</label>
-              <div className="grid grid-cols-6 gap-2 p-3 bg-background border border-surface-border rounded-xl">
-                {COMMON_EMOJIS.map(emoji => (
-                  <button
-                    key={emoji}
-                    onClick={() => setNewHabit({...newHabit, emoji})}
+            <GoalInput 
+              label="Peso Alvo" 
+              value={goals?.targetWeight || 0} 
+              unit="kg" 
+              icon={Scale}
+              onChange={(v) => updateGoals({ targetWeight: v })}
+            />
+            <GoalInput 
+              label="Gordura Alvo" 
+              value={goals?.targetBf || 0} 
+              unit="%" 
+              icon={Droplets}
+              onChange={(v) => updateGoals({ targetBf: v })}
+            />
+            <GoalInput 
+              label="Calorias Diárias" 
+              value={goals?.targetCalories || 0} 
+              unit="kcal" 
+              icon={Zap}
+              onChange={(v) => updateGoals({ targetCalories: v })}
+            />
+            <GoalInput 
+              label="Proteína Diária" 
+              value={goals?.targetProtein || 0} 
+              unit="g" 
+              icon={Zap}
+              onChange={(v) => updateGoals({ targetProtein: v })}
+            />
+          </div>
+        </div>
+
+        {/* Alma Block */}
+        <div className="space-y-10">
+          <div className="flex items-center gap-5">
+            <div className="w-14 h-14 bg-accent/10 rounded-[1.5rem] flex items-center justify-center">
+              <Brain className="w-7 h-7 text-accent" />
+            </div>
+            <div>
+              <h2 className="text-3xl font-display font-bold text-secondary uppercase tracking-tight">Mental & Espírito</h2>
+              <p className="text-[10px] text-text-muted uppercase font-bold tracking-[0.3em]">ESTADO DE SER</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6">
+            <GoalInput 
+              label="Energia Diária Alvo" 
+              value={goals?.targetEnergy || 0} 
+              unit="/ 5" 
+              icon={Zap}
+              onChange={(v) => updateGoals({ targetEnergy: v })}
+            />
+            <div className="p-10 bg-surface border border-surface-border rounded-[3rem] flex items-center justify-between group hover:shadow-2xl hover:shadow-primary/5 transition-all card-3d">
+               <div className="space-y-3">
+                 <p className="text-[10px] font-bold text-text-muted uppercase tracking-[0.3em]">Status do Ciclo</p>
+                 <p className="text-2xl font-bold text-secondary uppercase font-display">Busca da Excelência</p>
+               </div>
+               <TrendingUp className="w-10 h-10 text-primary opacity-20 group-hover:opacity-100 transition-opacity" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Habits Management Section */}
+      <section className="space-y-16">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 border-b border-surface-border pb-10">
+          <div className="space-y-6">
+            <h2 className="text-5xl font-display font-bold text-secondary uppercase tracking-tighter">Gestão de Hábitos</h2>
+            <div className="flex gap-4">
+              <TabButton 
+                active={activeTab === 'pessoal'} 
+                onClick={() => setActiveTab('pessoal')}
+                label="Pessoal"
+              />
+              <TabButton 
+                active={activeTab === 'foco'} 
+                onClick={() => setActiveTab('foco')}
+                label="Profissional"
+              />
+            </div>
+          </div>
+          
+          <button 
+            onClick={() => { resetForm(); setIsModalOpen(true); }}
+            className="bg-secondary text-white h-16 px-10 rounded-2xl font-bold flex items-center gap-4 hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-secondary/20 group uppercase text-xs tracking-widest"
+          >
+            <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
+            Novo Hábito
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <AnimatePresence mode="popLayout">
+            {filteredHabits.map((habit) => (
+              <motion.div 
+                key={habit.id}
+                layout
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="bg-surface border border-surface-border rounded-[3rem] p-10 space-y-8 group hover:shadow-2xl hover:shadow-primary/5 transition-all card-3d"
+              >
+                <div className="flex justify-between items-start">
+                  <div className="w-16 h-16 bg-background border border-surface-border rounded-2xl flex items-center justify-center text-4xl group-hover:scale-110 transition-transform shadow-sm">
+                    {habit.emoji}
+                  </div>
+                  <div className="flex gap-3">
+                    <button 
+                      onClick={() => handleEdit(habit)}
+                      className="p-3 text-text-muted hover:text-primary hover:bg-primary/5 rounded-2xl transition-all"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={() => deleteHabit(habit.id)}
+                      className="p-3 text-text-muted hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-2xl font-display font-bold text-secondary group-hover:text-primary transition-colors tracking-tight uppercase">{habit.name}</h3>
+                  <div className="flex items-center gap-3 mt-3">
+                    <span className={cn(
+                      "text-[10px] font-bold uppercase tracking-[0.2em] px-3 py-1 rounded-full border",
+                      AREAS.find(a => a.id === habit.area)?.color.replace('text-', 'bg-').split(' ')[0].concat('/10'),
+                      AREAS.find(a => a.id === habit.area)?.color.replace('text-', 'border-').split(' ')[0].concat('/20'),
+                      AREAS.find(a => a.id === habit.area)?.color
+                    )}>
+                      {AREAS.find(a => a.id === habit.area)?.name}
+                    </span>
+                    <span className="text-[10px] font-bold text-text-muted uppercase tracking-[0.2em]">
+                      {habit.frequency_per_week}x / semana
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pt-8 border-t border-surface-border flex items-center justify-between">
+                   <div className="space-y-1">
+                     <p className="text-[9px] font-bold text-text-muted uppercase tracking-[0.3em]">Meta Diária</p>
+                     <p className="text-base font-bold text-secondary uppercase font-display">{habit.daily_goal} {habit.unit}</p>
+                   </div>
+                   <div className="flex items-center gap-2">
+                     <div className={cn("w-2 h-2 rounded-full", habit.area === 'corpo' ? 'bg-primary' : 'bg-accent')} />
+                     <span className="text-[10px] font-bold text-text-muted uppercase tracking-[0.2em]">{habit.type === 'check' ? 'CHECK' : 'VALOR'}</span>
+                   </div>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+      </section>
+
+      {/* Habit Modal */}
+      <Modal 
+        isOpen={isModalOpen} 
+        onClose={() => { setIsModalOpen(false); setEditingHabit(null); }} 
+        title={editingHabit ? "Editar Hábito" : "Conceber Novo Hábito"}
+      >
+        <div className="space-y-10 p-2 overflow-y-auto max-h-[80vh] scrollbar-hide">
+          {/* Main Name */}
+          <div className="space-y-4">
+            <label className="text-[10px] font-bold text-text-muted uppercase tracking-[0.3em]">Nomenclatura</label>
+            <input 
+              type="text" 
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="w-full bg-background border border-surface-border rounded-3xl px-8 py-6 text-2xl font-serif font-bold text-secondary outline-none focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all"
+              placeholder="Ex: Domínio Matinal"
+            />
+          </div>
+
+          {/* Emoji Selection */}
+          <div className="space-y-4">
+            <label className="text-[10px] font-bold text-text-muted uppercase tracking-[0.3em]">Símbolo Atávico</label>
+            <div className="flex flex-wrap gap-3">
+              {EMOJI_OPTIONS.map((emoji) => (
+                <button
+                  key={emoji}
+                  onClick={() => setFormData({ ...formData, emoji })}
+                  className={cn(
+                    "w-12 h-12 rounded-2xl flex items-center justify-center text-2xl transition-all hover:scale-110 active:scale-95",
+                    formData.emoji === emoji ? "bg-primary text-white shadow-xl shadow-primary/20 scale-110" : "bg-background border border-surface-border text-secondary hover:border-primary/40"
+                  )}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Area Select (Modern Style) */}
+          <div className="space-y-4">
+            <label className="text-[10px] font-bold text-text-muted uppercase tracking-[0.3em]">Esfera de Atuação</label>
+            <div className="grid grid-cols-3 gap-4">
+              {AREAS.map((area) => (
+                <button
+                  key={area.id}
+                  onClick={() => setFormData({ ...formData, area: area.id as any })}
+                  className={cn(
+                    "p-4 rounded-2xl flex flex-col items-center gap-2 border transition-all hover:shadow-lg",
+                    formData.area === area.id 
+                      ? "bg-surface border-primary shadow-xl shadow-primary/5" 
+                      : "bg-background border-surface-border opacity-50 hover:opacity-100"
+                  )}
+                >
+                  <span className="text-2xl">{area.emoji}</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest">{area.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Type Selection (Modern) */}
+          <div className="space-y-4">
+            <label className="text-[10px] font-bold text-text-muted uppercase tracking-[0.3em]">Mecânica de Medição</label>
+            <div className="grid grid-cols-2 gap-4">
+              {HABIT_TYPES.map((type) => (
+                <button
+                  key={type.id}
+                  onClick={() => setFormData({ ...formData, type: type.id as any })}
+                  className={cn(
+                    "p-6 rounded-[2rem] text-left border transition-all h-full flex flex-col justify-between group",
+                    formData.type === type.id 
+                      ? "bg-secondary text-white border-secondary shadow-2xl" 
+                      : "bg-background border-surface-border text-secondary hover:border-primary/40"
+                  )}
+                >
+                  <div className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center mb-4 transition-all",
+                    formData.type === type.id ? "bg-primary text-white" : "bg-primary/10 text-primary group-hover:scale-110"
+                  )}>
+                    {type.id === 'check' ? <Check className="w-4 h-4" /> : <TrendingUp className="w-4 h-4" />}
+                  </div>
+                  <div>
+                    <p className="font-bold text-sm tracking-tight">{type.name}</p>
+                    <p className={cn(
+                      "text-[10px] uppercase tracking-widest mt-1",
+                      formData.type === type.id ? "text-white/40" : "text-text-muted"
+                    )}>{type.description}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Frequency */}
+            <div className="space-y-4">
+              <label className="text-[10px] font-bold text-text-muted uppercase tracking-[0.3em]">Recorrência Semanal</label>
+              <div className="flex items-center gap-4 bg-background border border-surface-border rounded-3xl p-2 h-16">
+                {[1, 2, 3, 4, 5, 6, 7].map((num) => (
+                  <button 
+                    key={num}
+                    onClick={() => setFormData({ ...formData, frequency_per_week: num })}
                     className={cn(
-                      "w-10 h-10 flex items-center justify-center rounded-lg text-xl transition-all",
-                      newHabit.emoji === emoji ? "bg-primary/10 border-2 border-primary" : "hover:bg-surface-hover border border-transparent"
+                      "flex-1 h-full rounded-2xl flex items-center justify-center text-xs font-bold transition-all",
+                      formData.frequency_per_week === num ? "bg-primary text-white shadow-lg" : "text-text-muted hover:bg-surface-hover"
                     )}
                   >
-                    {emoji}
+                    {num}
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-secondary">Área</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(['alma', 'corpo', 'agencia'] as const).map(area => (
-                    <button
-                      key={area}
-                      onClick={() => {
-                        // Quando muda a área, limpa a meta vinculada para forçar nova seleção
-                        setNewHabit({...newHabit, area, goal_id: ""});
-                      }}
-                      className={cn(
-                        "py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all",
-                        newHabit.area === area 
-                          ? "bg-primary text-white border-primary shadow-sm" 
-                          : "bg-background text-text-muted border-surface-border hover:border-primary/30"
-                      )}
-                    >
-                      {area === 'alma' ? 'Alma' : area === 'corpo' ? 'Corpo' : 'Agência'}
-                    </button>
-                  ))}
+            {/* Daily Goal */}
+            {formData.type === 'numeric' && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-4">
+                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-[0.3em]">Meta Diária</label>
+                  <input 
+                    type="number" 
+                    value={formData.daily_goal}
+                    onChange={(e) => setFormData({ ...formData, daily_goal: Number(e.target.value) })}
+                    className="w-full h-16 bg-background border border-surface-border rounded-3xl px-6 text-xl font-bold text-secondary outline-none focus:border-primary transition-all text-center"
+                  />
+                </div>
+                <div className="space-y-4">
+                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-[0.3em]">Unidade</label>
+                  <select 
+                    value={formData.unit}
+                    onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                    className="w-full h-16 bg-background border border-surface-border rounded-3xl px-4 font-bold text-xs text-secondary outline-none focus:border-primary transition-all"
+                  >
+                    {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                  </select>
                 </div>
               </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-secondary">Tipo de Hábito</label>
-                <div className="grid grid-cols-1 gap-2">
-                  {[
-                    { id: 'check', label: 'Check Diário', desc: 'Simples feito/não feito' },
-                    { id: 'numeric', label: 'Numérico', desc: 'Atingir um valor diário' },
-                    { id: 'negative', label: 'Negativo', desc: 'Evitar comportamento' }
-                  ].map(type => (
-                    <button
-                      key={type.id}
-                      onClick={() => setNewHabit({...newHabit, type: type.id as any})}
-                      className={cn(
-                        "flex flex-col p-3 rounded-xl border text-left transition-all",
-                        newHabit.type === type.id 
-                          ? "bg-primary/5 border-primary ring-1 ring-primary/20" 
-                          : "bg-background border-surface-border hover:border-primary/30"
-                      )}
-                    >
-                      <span className={cn("text-sm font-bold", newHabit.type === type.id ? "text-primary" : "text-secondary")}>
-                        {type.label}
-                      </span>
-                      <span className="text-[10px] text-text-muted">{type.desc}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-secondary">Frequência Semanal</label>
-            <div className="flex justify-between gap-2">
-              {[1, 2, 3, 4, 5, 6, 7].map(freq => (
-                <button
-                  key={freq}
-                  onClick={() => setNewHabit({...newHabit, frequency_per_week: freq})}
-                  className={cn(
-                    "flex-1 py-3 rounded-xl border font-mono font-bold transition-all",
-                    newHabit.frequency_per_week === freq 
-                      ? "bg-primary text-white border-primary shadow-md scale-105" 
-                      : "bg-background text-text-muted border-surface-border hover:bg-surface-hover"
-                  )}
-                >
-                  {freq}x
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {newHabit.type === 'numeric' && (
-            <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-secondary">Meta Diária</label>
-                <input 
-                  type="number"
-                  value={newHabit.target_value}
-                  onChange={(e) => setNewHabit({...newHabit, target_value: parseFloat(e.target.value)})}
-                  className="w-full px-4 py-3 bg-background border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-secondary">Unidade</label>
-                <select 
-                  value={newHabit.unit}
-                  onChange={(e) => setNewHabit({...newHabit, unit: e.target.value})}
-                  className="w-full px-4 py-3 bg-background border border-surface-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                >
-                  <option value="">Selecione...</option>
-                  {COMMON_UNITS.map(u => (
-                    <option key={u} value={u}>{u}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-secondary">Meta Vinculada (Obrigatória)</label>
-            <select 
-              value={newHabit.goal_id}
-              onChange={(e) => setNewHabit({...newHabit, goal_id: e.target.value})}
-              className={cn(
-                "w-full px-4 py-3 bg-background border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all",
-                !newHabit.goal_id ? "border-orange-300" : "border-surface-border"
-              )}
-            >
-              <option value="">Selecione uma meta de {newHabit.area === 'alma' ? 'Alma' : newHabit.area === 'corpo' ? 'Corpo' : 'Agência'}...</option>
-              {(() => {
-                const filteredGoals = goals[newHabit.area as keyof typeof goals] || [];
-                return filteredGoals.map(g => (
-                  <option key={g.id} value={g.id}>{g.title}</option>
-                ));
-              })()}
-            </select>
-            {!newHabit.goal_id && (
-              <p className="text-[10px] text-orange-600 font-medium px-1">
-                * Você deve vincular este hábito a uma meta de {newHabit.area === 'alma' ? 'Alma' : newHabit.area === 'corpo' ? 'Corpo' : 'Agência'}.
-              </p>
             )}
           </div>
 
-          <div className="flex gap-3 pt-4">
-            <button 
-              onClick={() => setIsHabitModalOpen(false)}
-              className="flex-1 px-4 py-3 border border-surface-border text-secondary rounded-xl hover:bg-surface-hover transition-colors font-medium"
-            >
-              Cancelar
-            </button>
-            <button 
-              onClick={handleAddHabit}
-              disabled={!newHabit.goal_id || !newHabit.name}
-              className={cn(
-                "flex-1 px-4 py-3 rounded-xl transition-colors font-medium shadow-sm",
-                (!newHabit.goal_id || !newHabit.name) 
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed" 
-                  : "bg-primary text-white hover:bg-primary/90"
-              )}
-            >
-              {editingHabitId ? "Salvar Alterações" : "Criar Hábito"}
-            </button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Edit Goals Modal */}
-      <Modal 
-        isOpen={isEditModalOpen} 
-        onClose={() => setIsEditModalOpen(false)} 
-        title="Editar Metas do Ciclo"
-        className="max-w-2xl"
-      >
-        <div className="space-y-8">
-          <div className="space-y-6">
-            <h4 className="text-sm font-bold text-text-muted uppercase tracking-widest border-b border-surface-border pb-2">Metas Ativas</h4>
-            <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2">
-              {[...goals.corpo, ...goals.alma, ...goals.agencia].length === 0 && (
-                <p className="text-sm text-text-muted italic">Nenhuma meta cadastrada.</p>
-              )}
-              {[...goals.corpo, ...goals.alma, ...goals.agencia].map(goal => (
-                <div key={goal.id} className="flex items-center justify-between p-4 bg-background border border-surface-border rounded-2xl">
-                  <div>
-                    <div className="font-medium text-secondary">{goal.title}</div>
-                    <div className="text-xs text-text-muted">Meta: {goal.target}{goal.unit}</div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={() => handleEditGoalClick(goal)}
-                      className="p-2 text-text-muted hover:text-primary transition-colors"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button 
-                      onClick={() => handleDeleteGoal(goal.id)}
-                      className="p-2 text-text-muted hover:text-red-500 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h4 className="text-sm font-bold text-text-muted uppercase tracking-widest border-b border-surface-border pb-2">
-              {editingGoalId ? "Editar Meta" : "Nova Meta"}
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-text-muted ml-1">Título</label>
-                <input 
-                  type="text" 
-                  value={newGoal.title}
-                  onChange={(e) => setNewGoal({...newGoal, title: e.target.value})}
-                  placeholder="Ex: Ler 5 livros" 
-                  className="w-full bg-background border border-surface-border rounded-xl px-4 py-2 text-sm outline-none focus:border-primary" 
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-text-muted ml-1">Pilar</label>
-                <select 
-                  value={newGoal.category}
-                  onChange={(e) => setNewGoal({...newGoal, category: e.target.value})}
-                  className="w-full bg-background border border-surface-border rounded-xl px-4 py-2 text-sm outline-none focus:border-primary"
-                >
-                  <option>Corpo</option>
-                  <option>Alma</option>
-                  <option>Agência</option>
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-text-muted ml-1">Valor Inicial</label>
-                <input 
-                  type="number" 
-                  value={newGoal.start_value}
-                  onChange={(e) => setNewGoal({...newGoal, start_value: e.target.value})}
-                  placeholder="0" 
-                  className="w-full bg-background border border-surface-border rounded-xl px-4 py-2 text-sm outline-none focus:border-primary" 
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-text-muted ml-1">Valor Atual</label>
-                <input 
-                  type="number" 
-                  value={newGoal.current_value}
-                  onChange={(e) => setNewGoal({...newGoal, current_value: e.target.value})}
-                  placeholder="0" 
-                  className="w-full bg-background border border-surface-border rounded-xl px-4 py-2 text-sm outline-none focus:border-primary" 
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-text-muted ml-1">Meta Final</label>
-                <input 
-                  type="number" 
-                  value={newGoal.target_value}
-                  onChange={(e) => setNewGoal({...newGoal, target_value: e.target.value})}
-                  placeholder="0" 
-                  className="w-full bg-background border border-surface-border rounded-xl px-4 py-2 text-sm outline-none focus:border-primary" 
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-text-muted ml-1">Unidade</label>
-                <input 
-                  type="text" 
-                  value={newGoal.unit}
-                  onChange={(e) => setNewGoal({...newGoal, unit: e.target.value})}
-                  placeholder="Ex: kg, %, livros" 
-                  className="w-full bg-background border border-surface-border rounded-xl px-4 py-2 text-sm outline-none focus:border-primary" 
-                />
-              </div>
-            </div>
-            <div className="flex gap-3">
-              {editingGoalId && (
-                <button 
-                  onClick={() => {
-                    setEditingGoalId(null);
-                    setNewGoal({ title: "", category: "Corpo", target_value: "", unit: "", start_value: "", current_value: "" });
-                  }}
-                  className="flex-1 py-3 bg-surface border border-surface-border text-text-muted rounded-xl text-sm font-medium hover:bg-surface-border/50 transition-colors"
-                >
-                  Cancelar
-                </button>
-              )}
-              <button 
-                onClick={handleAddGoal}
-                className={cn(
-                  "flex-[2] py-3 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2",
-                  editingGoalId 
-                    ? "bg-primary text-white hover:bg-primary/90" 
-                    : "bg-background border border-dashed border-primary/30 text-primary hover:bg-primary/5"
-                )}
-              >
-                {editingGoalId ? (
-                  <>
-                    <Check className="w-4 h-4" />
-                    Salvar Alterações
-                  </>
-                ) : (
-                  <>
-                    <Plus className="w-4 h-4" />
-                    Adicionar Meta
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Modal de Confirmação de Exclusão de Meta */}
-      <Modal
-        isOpen={isDeleteGoalModalOpen}
-        onClose={() => setIsDeleteGoalModalOpen(false)}
-        title="Excluir Meta"
-      >
-        <div className="space-y-6">
-          <p className="text-secondary">Tem certeza que deseja excluir esta meta? Esta ação não pode ser desfeita.</p>
-          <div className="flex gap-3">
-            <button 
-              onClick={() => setIsDeleteGoalModalOpen(false)}
-              className="flex-1 px-4 py-3 border border-surface-border text-secondary rounded-xl hover:bg-surface-hover transition-colors font-medium"
-            >
-              Cancelar
-            </button>
-            <button 
-              onClick={confirmDeleteGoal}
-              className="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors font-medium shadow-sm"
-            >
-              Excluir
-            </button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Modal de Confirmação de Exclusão de Hábito */}
-      <Modal
-        isOpen={isDeleteHabitModalOpen}
-        onClose={() => setIsDeleteHabitModalOpen(false)}
-        title="Excluir Hábito"
-      >
-        <div className="space-y-6">
-          <p className="text-secondary">Tem certeza que deseja excluir este hábito? Esta ação não pode ser desfeita.</p>
-          <div className="flex gap-3">
-            <button 
-              onClick={() => setIsDeleteHabitModalOpen(false)}
-              className="flex-1 px-4 py-3 border border-surface-border text-secondary rounded-xl hover:bg-surface-hover transition-colors font-medium"
-            >
-              Cancelar
-            </button>
-            <button 
-              onClick={confirmDeleteHabit}
-              className="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors font-medium shadow-sm"
-            >
-              Excluir
-            </button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Gerenciamento de Hábitos */}
-      <div className="space-y-8 mt-16 animate-in slide-in-from-bottom-4 duration-500">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-primary/10 rounded-2xl">
-              <Activity className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <h2 className="font-serif text-3xl font-semibold text-secondary">Gerenciamento de Hábitos</h2>
-              <p className="text-text-muted text-sm">Configure seus hábitos e frequências semanais.</p>
-            </div>
-          </div>
-
-          <button 
-            onClick={() => {
-              setEditingHabitId(null);
-              setNewHabit({ name: "", frequency_per_week: 7, type: 'check', target_value: 0, unit: "", color: "blue", emoji: "🎯", area: "alma", goal_id: "" });
-              setIsHabitModalOpen(true);
-            }}
-            className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-2xl hover:bg-primary/90 transition-all shadow-md font-medium"
+          <Button 
+            onClick={saveHabit} 
+            className="w-full py-8 text-lg font-bold rounded-3xl shadow-2xl shadow-primary/30 hover:scale-[1.02] active:scale-[0.98] transition-all bg-primary"
           >
-            <Plus className="w-5 h-5" />
-            Novo Hábito
-          </button>
+            {editingHabit ? "Atualizar Diretriz" : "Selar Destino"}
+          </Button>
         </div>
-
-        {/* Tabs de Hábitos */}
-        <div className="flex bg-surface border border-surface-border p-1.5 rounded-2xl w-fit">
-          <button 
-            onClick={() => setActiveHabitTab('pessoal')}
-            className={cn(
-              "flex items-center gap-2 px-6 py-2.5 rounded-xl font-medium transition-all",
-              activeHabitTab === 'pessoal' ? "bg-background text-primary shadow-sm" : "text-text-muted hover:text-primary"
-            )}
-          >
-            Pessoal
-          </button>
-          <button 
-            onClick={() => setActiveHabitTab('agencia')}
-            className={cn(
-              "flex items-center gap-2 px-6 py-2.5 rounded-xl font-medium transition-all",
-              activeHabitTab === 'agencia' ? "bg-background text-primary shadow-sm" : "text-text-muted hover:text-primary"
-            )}
-          >
-            Agência
-          </button>
-        </div>
-
-        {/* Lista de Hábitos */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {habits
-            .filter(habit => {
-              if (activeHabitTab === 'pessoal') {
-                return habit.area === 'alma' || habit.area === 'corpo' || !habit.area;
-              } else {
-                return habit.area === 'agencia';
-              }
-            })
-            .map(habit => {
-              const areaColor = habit.area === 'alma' ? 'bg-orange-100 text-orange-600' : 
-                                habit.area === 'corpo' ? 'bg-emerald-100 text-emerald-600' : 
-                                habit.area === 'agencia' ? 'bg-blue-100 text-blue-600' : 
-                                'bg-gray-100 text-gray-600';
-              
-              const areaLabel = habit.area === 'alma' ? 'Alma' : 
-                                habit.area === 'corpo' ? 'Corpo' : 
-                                habit.area === 'agencia' ? 'Agência' : 
-                                'Pessoal';
-
-              return (
-                <div key={habit.id} className="bg-surface border border-surface-border rounded-3xl p-6 shadow-sm hover:shadow-md transition-all group relative">
-                  <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                    <button 
-                      onClick={() => handleEditHabitClick(habit)}
-                      className="p-2 bg-background border border-surface-border rounded-xl text-text-muted hover:text-primary transition-all"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button 
-                      onClick={() => handleDeleteHabit(habit.id)}
-                      className="p-2 bg-background border border-surface-border rounded-xl text-text-muted hover:text-red-500 transition-all"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="text-3xl bg-background w-12 h-12 rounded-2xl flex items-center justify-center border border-surface-border shadow-sm">
-                      {habit.emoji || '🎯'}
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-secondary leading-tight">{habit.name}</h4>
-                      <div className={cn("text-[10px] font-bold uppercase tracking-widest mt-1 px-2 py-0.5 rounded-full inline-block", areaColor)}>
-                        {areaLabel}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-text-muted">Frequência:</span>
-                      <span className="font-medium text-secondary">{habit.frequency_per_week}x por semana</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-text-muted">Tipo:</span>
-                      <span className="font-medium text-secondary">
-                        {habit.type === 'numeric' ? 'Numérico' : habit.type === 'negative' ? 'Negativo' : 'Check'}
-                      </span>
-                    </div>
-                    {habit.goal_id && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-text-muted">Meta:</span>
-                        <span className="font-medium text-primary flex items-center gap-1">
-                          <Target className="w-3 h-3" />
-                          {(() => {
-                            const allGoals = [...goals.corpo, ...goals.alma, ...goals.agencia];
-                            return allGoals.find(g => g.id === habit.goal_id)?.title || 'Meta vinculada';
-                          })()}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          
-          {habits.filter(habit => {
-            if (activeHabitTab === 'pessoal') {
-              return habit.area === 'alma' || habit.area === 'corpo' || !habit.area;
-            } else {
-              return habit.area === 'agencia';
-            }
-          }).length === 0 && (
-            <div className="col-span-full py-12 text-center bg-surface/50 border border-dashed border-surface-border rounded-3xl">
-              <p className="text-text-muted italic">Nenhum hábito cadastrado nesta área.</p>
-            </div>
-          )}
-        </div>
-      </div>
+      </Modal>
     </div>
   );
 }
 
-function GoalCard({ goal, color, onEdit, onDelete }: any) {
-  let percentage = 0;
-  if (goal.inverse) {
-    const totalDiff = goal.start - goal.target;
-    const currentDiff = goal.start - goal.current;
-    percentage = Math.max(0, Math.min(100, (currentDiff / totalDiff) * 100));
-  } else {
-    const totalDiff = goal.target - goal.start;
-    const currentDiff = goal.current - goal.start;
-    percentage = Math.max(0, Math.min(100, (currentDiff / totalDiff) * 100));
-  }
+function GoalInput({ label, value, unit, icon: Icon, onChange }: any) {
+  const [localValue, setLocalValue] = useState(value);
+
+  useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
+
+  const handleBlur = () => {
+    if (localValue !== value) {
+      onChange(Number(localValue));
+    }
+  };
 
   return (
-    <div className="bg-surface border border-surface-border rounded-2xl p-5 shadow-sm hover:shadow-md transition-all group relative">
-      <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
-        {onEdit && (
-          <button 
-            onClick={() => onEdit(goal)}
-            className="p-2 bg-background border border-surface-border rounded-lg text-text-muted hover:text-primary transition-all"
-          >
-            <Edit2 className="w-4 h-4" />
-          </button>
-        )}
-        {onDelete && (
-          <button 
-            onClick={() => onDelete(goal.id)}
-            className="p-2 bg-background border border-surface-border rounded-lg text-text-muted hover:text-red-500 transition-all"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        )}
-      </div>
-      <div className="flex justify-between items-start mb-4">
-        <h4 className="font-medium text-secondary leading-snug pr-16">{goal.title}</h4>
-        {percentage >= 100 ? (
-          <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-        ) : (
-          <Target className="w-4 h-4 text-text-muted flex-shrink-0 mt-0.5" />
-        )}
-      </div>
-      
-      <div className="space-y-2">
-        <div className="flex justify-between items-end">
-          <span className="text-xl font-mono font-bold text-primary">
-            {goal.current}<span className="text-sm font-sans font-normal text-text-muted">{goal.unit}</span>
-          </span>
-          <span className="text-xs font-mono text-text-muted">
-            Meta: {goal.target}{goal.unit}
-          </span>
+    <div className="bg-surface border border-surface-border rounded-[3rem] p-10 space-y-6 card-3d group">
+      <div className="flex justify-between items-center">
+        <span className="text-[10px] font-bold text-text-muted uppercase tracking-[0.4em]">{label}</span>
+        <div className="p-4 bg-background border border-surface-border rounded-2xl group-hover:bg-primary group-hover:text-background transition-all duration-700">
+          <Icon className="w-6 h-6" />
         </div>
-        
-        <div className="h-2 w-full bg-background rounded-full overflow-hidden border border-surface-border">
-          <div 
-            className={cn("h-full rounded-full transition-all duration-1000 ease-out", color)}
-            style={{ width: `${percentage}%` }}
-          />
-        </div>
+      </div>
+      <div className="flex items-baseline gap-3">
+        <input 
+          type="number" 
+          value={localValue}
+          onChange={(e) => setLocalValue(e.target.value)}
+          onBlur={handleBlur}
+          className="bg-transparent border-none outline-none text-6xl md:text-7xl font-display font-bold text-secondary w-full tracking-tighter"
+        />
+        <span className="text-2xl font-bold text-text-muted uppercase tracking-tighter">{unit}</span>
       </div>
     </div>
   );
 }
+
+function TabButton({ active, onClick, label }: { active: boolean, onClick: () => void, label: string }) {
+  return (
+    <button 
+      onClick={onClick}
+      className={cn(
+        "px-10 py-3 rounded-full text-[10px] font-bold uppercase tracking-[0.3em] transition-all duration-700",
+        active ? "bg-secondary text-white shadow-2xl shadow-secondary/20" : "text-text-muted hover:bg-surface-hover hover:text-secondary"
+      )}
+    >
+      {label}
+    </button>
+  );
+}
+
