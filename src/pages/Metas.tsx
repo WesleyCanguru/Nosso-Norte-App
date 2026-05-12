@@ -117,18 +117,38 @@ export function Metas() {
 
   const saveHabit = async () => {
     if (!user || !formData.name) return;
+    
+    // Preparar dados para inserção/update
+    const cleanData = { ...formData, user_name: user.name };
+    
+    // Se goal_id for string vazia, deve ser null para o Supabase (UUID)
+    if (cleanData.goal_id === "") {
+      delete cleanData.goal_id;
+    }
+
     try {
       if (editingHabit) {
-        await supabase.from('habits').update({ ...formData, user_name: user.name }).eq('id', editingHabit.id);
+        const { error } = await supabase
+          .from('habits')
+          .update(cleanData)
+          .eq('id', editingHabit.id);
+        
+        if (error) throw error;
       } else {
-        await supabase.from('habits').insert([{ ...formData, user_name: user.name }]);
+        const { error } = await supabase
+          .from('habits')
+          .insert([cleanData]);
+          
+        if (error) throw error;
       }
+      
       fetchHabits();
       setIsModalOpen(false);
       setEditingHabit(null);
       resetForm();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving habit:", error);
+      alert(`Erro ao salvar hábito: ${error.message || 'Erro de conexão ou no banco de dados'}. Se você vinculou a uma meta, verifique se a coluna goal_id existe na tabela habits.`);
     }
   };
 
