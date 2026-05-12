@@ -194,83 +194,83 @@ export function Habitos() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-16 pb-20">
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-12">
-        <div className="space-y-6">
+    <div className="max-w-6xl mx-auto space-y-8 md:space-y-16 pb-20">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-8 md:gap-12 px-4 md:px-0">
+        <div className="space-y-4 md:space-y-6">
           <div className="inline-flex items-center gap-3 px-4 py-2 bg-primary/5 rounded-full border border-primary/10">
             <Calendar className="w-3 h-3 text-primary" />
             <span className="text-[10px] font-bold text-primary uppercase tracking-[0.4em]">ARQUITETURA DE ROTINA / 0&bull;2</span>
           </div>
-          <h1 className="text-6xl md:text-7xl font-display font-bold text-secondary leading-[0.85] tracking-[-0.06em] uppercase">
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-display font-bold text-secondary leading-[0.9] tracking-[-0.04em] uppercase">
             REGISTRO<br />
             <span className="text-accent italic font-medium">DIÁRIO.</span>
           </h1>
-          <p className="text-text-muted text-xl font-light max-w-md">“Transforme a consistência em um monumento ao seu propósito.”</p>
+          <p className="text-text-muted text-lg md:text-xl font-light max-w-md">“Transforme a consistência em um monumento ao seu propósito.”</p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-6">
-          <div className="flex items-center gap-3 bg-surface border border-surface-border rounded-2xl p-2 transition-all hover:shadow-2xl hover:shadow-primary/5 duration-700">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 md:gap-6">
+          <div className="flex items-center justify-between gap-3 bg-surface border border-surface-border rounded-2xl p-1.5 md:p-2 transition-all hover:shadow-2xl hover:shadow-primary/5 duration-700">
             <button 
               onClick={() => changeWeek(-1)}
-              className="p-4 hover:bg-primary/5 rounded-xl transition-all text-text-muted hover:text-primary group"
+              className="p-3 md:p-4 hover:bg-primary/5 rounded-xl transition-all text-text-muted hover:text-primary group"
             >
-              <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+              <ChevronLeft className="w-4 h-4 md:w-5 md:h-5 group-hover:-translate-x-1 transition-transform" />
             </button>
-            <div className="px-8 py-3 text-[11px] font-bold text-secondary uppercase tracking-[0.4em] min-w-[200px] text-center border-l border-r border-surface-border">
+            <div className="px-4 md:px-8 py-2 md:py-3 text-[9px] md:text-[11px] font-bold text-secondary uppercase tracking-[0.2em] md:tracking-[0.4em] min-w-[120px] md:min-w-[200px] text-center border-l border-r border-surface-border">
               {formatMonth(selectedWeekStart)}
             </div>
             <button 
               onClick={() => changeWeek(1)}
-              className="p-4 hover:bg-primary/5 rounded-xl transition-all text-text-muted hover:text-primary group"
+              className="p-3 md:p-4 hover:bg-primary/5 rounded-xl transition-all text-text-muted hover:text-primary group"
             >
-              <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              <ChevronRight className="w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform" />
             </button>
           </div>
           
           <button 
             onClick={() => setIsModalOpen(true)}
-            className="h-16 bg-primary text-white px-10 rounded-2xl font-bold text-[11px] uppercase tracking-[0.2em] flex items-center gap-4 hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-primary/30 group"
+            className="h-14 md:h-16 bg-primary text-white px-8 md:px-10 rounded-2xl font-bold text-[10px] md:text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-4 hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-primary/30 group"
           >
             <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-700" />
-            Novo Registro
+            <span>Novo Registro</span>
           </button>
         </div>
       </header>
 
-      <div className="bg-surface border border-surface-border rounded-[3.5rem] shadow-2xl shadow-primary/5 overflow-hidden card-3d">
+      <div className="bg-surface border border-surface-border rounded-[2rem] md:rounded-[3.5rem] shadow-2xl shadow-primary/5 overflow-hidden card-3d mx-2 md:mx-0">
         <div className="overflow-x-auto overflow-y-visible scrollbar-hide">
-          <table className="w-full text-left border-collapse min-w-[1000px]">
+          <table className="w-full text-left border-collapse min-w-[800px] md:min-w-[1000px]">
             <thead>
               <tr className="border-b border-surface-border bg-surface-hover/30">
-                <th className="p-12 font-bold text-[10px] text-text-muted uppercase tracking-[0.4em] w-[400px]">IDENTIDADE / HÁBITO</th>
+                <th className="p-8 md:p-12 font-bold text-[9px] md:text-[10px] text-text-muted uppercase tracking-[0.2em] md:tracking-[0.4em] w-[300px] md:w-[400px]">IDENTIDADE / HÁBITO</th>
                 {weekDays.map((date, i) => (
-                  <th key={i} className="p-4 text-center">
+                  <th key={i} className="p-2 md:p-4 text-center">
                     <div className={cn(
-                      "inline-flex flex-col items-center justify-center w-20 h-24 rounded-2xl transition-all duration-1000",
+                      "inline-flex flex-col items-center justify-center w-14 h-16 md:w-20 md:h-24 rounded-xl md:rounded-2xl transition-all duration-1000",
                       date.toDateString() === new Date().toDateString() ? "bg-secondary text-white shadow-[0_20px_40px_rgba(74,53,47,0.3)] scale-110" : "text-text-muted"
                     )}>
-                      <span className="text-[10px] font-bold uppercase tracking-[0.3em] opacity-60 mb-3">
+                      <span className="text-[8px] md:text-[10px] font-bold uppercase tracking-[0.1em] md:tracking-[0.3em] opacity-60 mb-1 md:mb-3">
                         {date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}
                       </span>
-                      <span className="text-2xl font-display font-bold leading-none tracking-tight">{date.getDate()}</span>
+                      <span className="text-lg md:text-2xl font-display font-bold leading-none tracking-tight">{date.getDate()}</span>
                     </div>
                   </th>
                 ))}
-                <th className="p-8 w-1"></th>
+                <th className="p-4 md:p-8 w-1"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-surface-border">
               {habits.map((habit) => (
                 <tr key={habit.id} className="group hover:bg-primary/[0.02] transition-all duration-500">
-                  <td className="p-12">
-                    <div className="flex items-center gap-8">
-                      <div className="w-20 h-20 bg-background border border-surface-border rounded-[2rem] flex items-center justify-center text-4xl shadow-sm transition-all duration-700 group-hover:scale-110 group-hover:-rotate-6 group-hover:border-primary/20">
+                  <td className="p-8 md:p-12">
+                    <div className="flex items-center gap-4 md:gap-8">
+                      <div className="w-14 h-14 md:w-20 md:h-20 bg-background border border-surface-border rounded-2xl md:rounded-[2rem] flex items-center justify-center text-2xl md:text-4xl shadow-sm transition-all duration-700 group-hover:scale-110 group-hover:-rotate-6 group-hover:border-primary/20">
                         {habit.emoji || "✨"}
                       </div>
                       <div>
-                        <h3 className="font-display font-bold text-secondary text-3xl group-hover:text-primary transition-colors tracking-tight uppercase">{habit.name}</h3>
-                        <p className="text-[10px] text-text-muted font-bold uppercase tracking-[0.3em] flex items-center gap-3 mt-2">
-                           <span className="w-2 h-2 rounded-full bg-primary/20 group-hover:bg-primary/40 transition-colors" />
+                        <h3 className="font-display font-bold text-secondary text-xl md:text-3xl group-hover:text-primary transition-colors tracking-tight uppercase leading-tight">{habit.name}</h3>
+                        <p className="text-[8px] md:text-[10px] text-text-muted font-bold uppercase tracking-[0.2em] md:tracking-[0.3em] flex items-center gap-2 md:gap-3 mt-1 md:mt-2">
+                           <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-primary/20 group-hover:bg-primary/40 transition-colors" />
                            {habit.area || "Geral"}
                         </p>
                       </div>
@@ -284,30 +284,30 @@ export function Habitos() {
                     const isFailed = log?.completed === false;
 
                     return (
-                      <td key={i} className="p-4 text-center">
+                      <td key={i} className="p-2 md:p-4 text-center">
                         <button 
                           onClick={() => toggleHabitStatus(habit.id, date)}
                           className={cn(
-                            "w-16 h-16 rounded-[1.5rem] flex items-center justify-center transition-all duration-700 transform active:scale-90",
+                            "w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-[1.5rem] flex items-center justify-center transition-all duration-700 transform active:scale-90",
                             isDone ? "bg-primary text-white shadow-2xl shadow-primary/30 scale-110" :
                             isFailed ? "bg-accent/10 border border-accent/20 text-accent" :
                             "bg-background border border-surface-border text-transparent hover:border-primary hover:bg-primary/5 group-hover:border-surface-border/80"
                           )}
                         >
-                          {isDone && <Check className="w-8 h-8 stroke-[3]" />}
-                          {isFailed && <X className="w-8 h-8 stroke-[3]" />}
+                          {isDone && <Check className="w-6 h-6 md:w-8 md:h-8 stroke-[3]" />}
+                          {isFailed && <X className="w-6 h-6 md:w-8 md:h-8 stroke-[3]" />}
                         </button>
                       </td>
                     );
                   })}
 
-                  <td className="p-12">
+                  <td className="p-8 md:p-12">
                     <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-x-6 group-hover:translate-x-0">
                       <button 
                         onClick={() => deleteHabit(habit.id)}
-                        className="p-4 text-text-muted hover:text-accent hover:bg-accent/10 rounded-2xl transition-all"
+                        className="p-2 md:p-4 text-text-muted hover:text-accent hover:bg-accent/10 rounded-xl md:rounded-2xl transition-all"
                       >
-                        <Trash2 className="w-5 h-5" />
+                        <Trash2 className="w-4 h-4 md:w-5 md:h-5" />
                       </button>
                     </div>
                   </td>

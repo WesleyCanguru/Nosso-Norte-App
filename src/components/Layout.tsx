@@ -9,13 +9,16 @@ import {
   Archive,
   LogOut,
   ChevronRight,
-  User
+  User,
+  Menu,
+  X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "./Button";
 import { getCycleInfo } from "@/lib/cycle";
+import { motion, AnimatePresence } from "motion/react";
 
 const navItems = [
   { name: "Início", path: "/", icon: LayoutDashboard },
@@ -29,16 +32,22 @@ const navItems = [
 
 export function Layout({ user, onLogout }: { user: { name: string }, onLogout: () => void }) {
   const [isScrolled, setIsScrolled] = useState(false);
-  const [userInitials, setUserInitials] = useState(user.name.substring(0, 2).toUpperCase());
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { currentDay, totalDays, cycleProgress } = getCycleInfo();
 
   const handleLogout = async () => {
-    localStorage.removeItem('w12_user');
-    onLogout();
-    navigate("/");
+    if (confirm("Deseja realmente encerrar sua sessão?")) {
+      localStorage.removeItem('w12_user');
+      onLogout();
+      navigate("/");
+    }
   };
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -49,7 +58,7 @@ export function Layout({ user, onLogout }: { user: { name: string }, onLogout: (
   }, []);
 
   return (
-    <div className="min-h-screen w-full bg-background text-text-main selection:bg-primary selection:text-white pb-24 md:pb-0 md:pl-20 lg:pl-64">
+    <div className="min-h-screen w-full bg-background text-text-main selection:bg-primary selection:text-white pb-12 md:pb-0 md:pl-24 lg:pl-64">
       {/* Desktop Sidebar (Lg screens) */}
       <aside className="hidden lg:flex fixed left-0 top-0 h-full w-64 bg-surface/50 backdrop-blur-2xl border-r border-surface-border flex-col z-50">
         <div className="p-8 pb-4">
@@ -138,45 +147,86 @@ export function Layout({ user, onLogout }: { user: { name: string }, onLogout: (
         </button>
       </aside>
 
-      {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-6 left-4 right-4 z-50 bg-white/80 backdrop-blur-xl border border-surface-border shadow-2xl rounded-3xl px-2 py-2 flex items-center justify-around">
-        {navItems.filter(item => ["Início", "Hábitos", "DDD", "Pomodoro"].includes(item.name)).map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            className={({ isActive }) =>
-              cn(
-                "flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all duration-300",
-                isActive 
-                  ? "bg-primary text-white shadow-lg shadow-primary/20" 
-                  : "text-text-muted hover:text-secondary"
-              )
-            }
-          >
-            <item.icon className="w-5 h-5" />
-            <span className="text-[9px] font-bold mt-1 uppercase tracking-tighter opacity-80">{item.name === "Início" ? "Home" : item.name}</span>
-          </NavLink>
-        ))}
-      </nav>
-
       {/* Mobile Top Header */}
       <header className={cn(
-        "md:hidden fixed top-0 left-0 w-full z-40 px-6 py-5 flex items-center justify-between transition-all duration-500",
-        isScrolled ? "bg-surface/90 backdrop-blur-md border-b border-surface-border shadow-sm" : "bg-transparent"
+        "md:hidden fixed top-0 left-0 w-full z-50 px-6 py-5 flex items-center justify-between transition-all duration-700",
+        isScrolled || isMobileMenuOpen ? "bg-surface/90 backdrop-blur-2xl border-b border-surface-border shadow-sm" : "bg-transparent"
       )}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center text-[11px] text-white font-bold shadow-xl shadow-primary/20 rotate-3">NN</div>
           <span className="oryzo-logo text-xl tracking-[-0.08em]">Nosso Norte</span>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-surface border border-surface-border flex items-center justify-center shadow-sm">
-            <User className="w-4 h-4 text-secondary/40" />
-          </div>
-        </div>
+        
+        <button 
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="w-10 h-10 rounded-full bg-surface border border-surface-border flex items-center justify-center shadow-sm text-secondary hover:bg-surface-hover transition-all"
+        >
+          {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        </button>
       </header>
 
+      {/* Mobile Navigation Overlay */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 1.1 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.05 }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="fixed inset-0 z-40 bg-surface/95 backdrop-blur-3xl md:hidden pt-24 px-6 pb-12 flex flex-col"
+          >
+            <div className="flex-1 space-y-2 overflow-y-auto scrollbar-hide">
+              <p className="text-[10px] font-bold text-text-muted uppercase tracking-[0.4em] mb-6 pl-4 opacity-40">MENUDESK / 0•1</p>
+              {navItems.map((item, index) => (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center justify-between px-6 py-5 rounded-[2rem] text-xs font-bold uppercase tracking-[0.2em] transition-all duration-500",
+                      isActive 
+                        ? "bg-secondary text-white shadow-2xl shadow-secondary/20" 
+                        : "text-text-muted hover:bg-surface-hover hover:text-secondary border border-transparent"
+                    )
+                  }
+                >
+                  <div className="flex items-center gap-5">
+                    <item.icon className="w-5 h-5" />
+                    <span>{item.name}</span>
+                  </div>
+                  <ChevronRight className={cn("w-4 h-4 opacity-30")} />
+                </NavLink>
+              ))}
+            </div>
+
+            <div className="pt-8 mt-auto border-t border-surface-border space-y-6">
+              <div className="flex items-center gap-4 px-6">
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+                  <User className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <p className="text-secondary font-bold text-sm uppercase tracking-tight">{user?.name}</p>
+                  <p className="text-[10px] text-text-muted uppercase tracking-widest">Plano Premium</p>
+                </div>
+              </div>
+
+              <button 
+                onClick={handleLogout}
+                className="w-full flex items-center justify-center gap-4 h-16 rounded-[2rem] border border-red-500/20 text-red-500 font-bold uppercase text-[10px] tracking-[0.3em] hover:bg-red-500/5 transition-all"
+              >
+                <LogOut className="w-5 h-5" />
+                Encerrar Sessão
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Main Content */}
-      <main className="pt-24 md:pt-12 px-6 md:px-10 lg:px-16 w-full animate-in fade-in duration-700">
+      <main className={cn(
+        "transition-all duration-700 pt-32 md:pt-12 px-6 md:px-10 lg:px-16 w-full animate-in fade-in duration-700",
+        isMobileMenuOpen ? "blur-xl" : "blur-0"
+      )}>
         <Outlet />
       </main>
     </div>
