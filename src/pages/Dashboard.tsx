@@ -60,10 +60,10 @@ export function Dashboard() {
       setStats({
         habitsDone,
         totalHabits,
-        weeklyAdherence: 85,
+        weeklyAdherence: 0,
         activeTasks: dddTasks?.length || 0,
         urgentTasks: dddTasks?.filter(t => t.type === 'tem_que').length || 0,
-        maxStreak: 12
+        maxStreak: 0
       });
 
     } catch (error) {

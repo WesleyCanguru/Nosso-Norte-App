@@ -5,13 +5,12 @@ import {
   ChevronLeft, 
   ChevronRight, 
   Plus, 
-  Pencil, 
-  Trash2,
   Calendar,
   Zap,
-  MoreVertical,
-  Loader2
+  Loader2,
+  Sparkles
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/hooks/useUser";
 import { supabase } from "@/lib/supabase";
@@ -38,11 +37,10 @@ type HabitLog = {
 
 export function Habitos() {
   const user = useUser();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [habits, setHabits] = useState<Habit[]>([]);
+  const [habits, setHabits] = useState<any[]>([]);
   const [logs, setLogs] = useState<HabitLog[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newHabit, setNewHabit] = useState({ name: '', emoji: '✨', area: 'alma' });
   const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(() => {
     const today = new Date();
     const day = today.getDay();
@@ -91,41 +89,6 @@ export function Habitos() {
       console.error("Error fetching habit data:", error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const createHabit = async () => {
-    if (!user || !newHabit.name) return;
-    try {
-      const { data, error } = await supabase
-        .from('habits')
-        .insert([{
-          ...newHabit,
-          user_name: user.name,
-          type: 'check',
-          frequency_per_week: 7
-        }])
-        .select()
-        .single();
-
-      if (error) throw error;
-      setHabits([...habits, data]);
-      setIsModalOpen(false);
-      setNewHabit({ name: '', emoji: '✨', area: 'alma' });
-    } catch (error) {
-      console.error("Error creating habit:", error);
-    }
-  };
-
-  const deleteHabit = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir este hábito?")) return;
-    try {
-      await supabase.from('habit_logs').delete().eq('habit_id', id);
-      const { error } = await supabase.from('habits').delete().eq('id', id);
-      if (error) throw error;
-      setHabits(habits.filter(h => h.id !== id));
-    } catch (error) {
-      console.error("Error deleting habit:", error);
     }
   };
 
@@ -228,11 +191,11 @@ export function Habitos() {
           </div>
           
           <button 
-            onClick={() => setIsModalOpen(true)}
-            className="h-14 md:h-16 bg-primary text-white px-8 md:px-10 rounded-2xl font-bold text-[10px] md:text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-4 hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-primary/30 group"
+            onClick={() => navigate('/metas')}
+            className="h-14 md:h-16 bg-secondary text-white px-8 md:px-10 rounded-2xl font-bold text-[10px] md:text-[11px] uppercase tracking-[0.2em] flex items-center justify-center gap-4 hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-secondary/30 group"
           >
             <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-700" />
-            <span>Novo Registro</span>
+            <span>Arquitetar Hábito</span>
           </button>
         </div>
       </header>
@@ -264,8 +227,11 @@ export function Habitos() {
                 <tr key={habit.id} className="group hover:bg-primary/[0.02] transition-all duration-500">
                   <td className="p-8 md:p-12">
                     <div className="flex items-center gap-4 md:gap-8">
-                      <div className="w-14 h-14 md:w-20 md:h-20 bg-background border border-surface-border rounded-2xl md:rounded-[2rem] flex items-center justify-center text-2xl md:text-4xl shadow-sm transition-all duration-700 group-hover:scale-110 group-hover:-rotate-6 group-hover:border-primary/20">
-                        {habit.emoji || "✨"}
+                      <div 
+                        className="w-14 h-14 md:w-20 md:h-20 rounded-2xl md:rounded-[2rem] flex items-center justify-center shadow-sm transition-all duration-700 group-hover:scale-110 group-hover:-rotate-6 border border-black/5"
+                        style={{ backgroundColor: habit.color || '#5E6E5A' }}
+                      >
+                        <Sparkles className="w-8 h-8 text-white" />
                       </div>
                       <div>
                         <h3 className="font-display font-bold text-secondary text-xl md:text-3xl group-hover:text-primary transition-colors tracking-tight uppercase leading-tight">{habit.name}</h3>
@@ -301,16 +267,7 @@ export function Habitos() {
                     );
                   })}
 
-                  <td className="p-8 md:p-12">
-                    <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-x-6 group-hover:translate-x-0">
-                      <button 
-                        onClick={() => deleteHabit(habit.id)}
-                        className="p-2 md:p-4 text-text-muted hover:text-accent hover:bg-accent/10 rounded-xl md:rounded-2xl transition-all"
-                      >
-                        <Trash2 className="w-4 h-4 md:w-5 md:h-5" />
-                      </button>
-                    </div>
-                  </td>
+                  <td className="p-4 md:p-8 w-1"></td>
                 </tr>
               ))}
             </tbody>
@@ -318,50 +275,6 @@ export function Habitos() {
         </div>
       </div>
 
-      <Modal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        title="Novo Registro"
-      >
-        <div className="space-y-12 p-8">
-          <div className="space-y-5">
-            <label className="text-[10px] font-bold text-text-muted uppercase tracking-[0.4em] block">Qual hábito deseja arquitetar?</label>
-            <input 
-              type="text"
-              value={newHabit.name}
-              onChange={(e) => setNewHabit({ ...newHabit, name: e.target.value })}
-              className="w-full bg-background border border-surface-border rounded-3xl px-8 py-8 outline-none focus:border-primary focus:shadow-2xl focus:shadow-primary/5 transition-all text-4xl font-display font-bold uppercase tracking-tight"
-              placeholder="Ex: Meditação"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-10">
-            <div className="space-y-5">
-              <label className="text-[10px] font-bold text-text-muted uppercase tracking-[0.4em] block">Símbolo (Emoji)</label>
-              <input 
-                type="text"
-                value={newHabit.emoji}
-                onChange={(e) => setNewHabit({ ...newHabit, emoji: e.target.value })}
-                className="w-full bg-background border border-surface-border rounded-3xl px-8 py-8 outline-none focus:border-primary transition-all text-center text-5xl"
-              />
-            </div>
-            <div className="space-y-5">
-              <label className="text-[10px] font-bold text-text-muted uppercase tracking-[0.4em] block">Área do Foco</label>
-              <select 
-                value={newHabit.area}
-                onChange={(e) => setNewHabit({ ...newHabit, area: e.target.value })}
-                className="w-full bg-background border border-surface-border rounded-3xl px-8 py-[42px] outline-none focus:border-primary transition-all font-bold text-[11px] uppercase tracking-[0.2em] appearance-none cursor-pointer"
-              >
-                <option value="alma">🤎 Alma (Essência)</option>
-                <option value="corpo">🌿 Corpo (Vitalidade)</option>
-                <option value="foco">🪵 Foco (Rumo ao Norte)</option>
-              </select>
-            </div>
-          </div>
-          <Button onClick={createHabit} className="w-full h-20 rounded-3xl text-[11px] uppercase tracking-[0.3em] font-bold shadow-2xl shadow-primary/30 scale-100 hover:scale-[1.02] active:scale-95 transition-all">
-            Consolidar Arquivo
-          </Button>
-        </div>
-      </Modal>
     </div>
   );
 }
