@@ -5,7 +5,8 @@ import {
   Trophy,
   Flame,
   CheckCircle2,
-  Calendar
+  Calendar,
+  Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/hooks/useUser";
@@ -32,6 +33,7 @@ export function Estatisticas() {
   const [loading, setLoading] = useState(true);
   const [habitsData, setHabitsData] = useState<any[]>([]);
   const [weeklyData, setWeeklyData] = useState<any[]>([]);
+  const [goals, setGoals] = useState<any[]>([]);
   const [overview, setOverview] = useState({
     aderenciaSemanal: 0,
     aderenciaMensal: 0,
@@ -53,14 +55,24 @@ export function Estatisticas() {
     if (!user) return;
     setLoading(true);
     try {
-      const { data: habits } = await supabase.from('habits').select('*').eq('user_name', user.name);
-      const { data: logs } = await supabase.from('habit_logs').select('*').eq('user_name', user.name);
+      const [habitsRes, logsRes, goalsRes] = await Promise.all([
+        supabase.from('habits').select('*').eq('user_name', user.name),
+        supabase.from('habit_logs').select('*').eq('user_name', user.name),
+        supabase.from('cycle_outcomes').select('*').eq('user_name', user.name).order('created_at', { ascending: true })
+      ]);
 
-      const activeHabits = habits?.length || 0;
-      const totalConcluido = logs?.filter(l => l.completed).length || 0;
+      const habits = habitsRes.data || [];
+      const logs = logsRes.data || [];
+      const outcomes = goalsRes.data || [];
+      
+      setGoals(outcomes);
 
-      // 1. Process Individual Habit Stats (Current Week, Last Week, Cycle Average)
+      const activeHabits = habits.length || 0;
+      const totalConcluido = logs.filter(l => l.completed).length || 0;
+
+      // ... existing processing logic ...
       const now = new Date();
+      // ... (no changes to processing logic inside fetchStats, but need to keep it consistent)
       
       // Calculate Monday of current week
       const currentWeekMonday = new Date(now);
@@ -90,7 +102,6 @@ export function Estatisticas() {
         const currentWeekAd = getWeekAdherence(currentWeekMonday, nextMonday);
         const lastWeekAd = getWeekAdherence(lastWeekMonday, currentWeekMonday);
         
-        // Cycle Average: Strictly within cycle dates
         let cycleAd = 0;
         if (cycle) {
           const cycleStart = new Date(cycle.start_date + 'T12:00:00');
@@ -99,7 +110,6 @@ export function Estatisticas() {
             return d >= cycleStart && d <= now;
           });
 
-          // Calculate how many weeks (even fractional) have passed since cycle start
           const elapsedMs = now.getTime() - cycleStart.getTime();
           const weeksElapsed = Math.max(1, elapsedMs / (1000 * 3600 * 24 * 7));
           const totalExpectedSoFar = weeksElapsed * (h.frequency_per_week || 7);
@@ -116,7 +126,7 @@ export function Estatisticas() {
         };
       });
 
-      // 2. Process Cycle Weekly Stats (12 Week Year logic)
+      // (Weekly score logic continues...)
       let weeklyScores: number[] = [];
       let currentWeekScore = 0;
       if (cycle) {
@@ -272,37 +282,66 @@ export function Estatisticas() {
       </div>
 
       {/* Por Hábito Section */}
-      <section className="space-y-6 pt-6">
-        <h2 className="text-2xl font-display font-bold text-secondary">Aderência por Hábito</h2>
+      <section className="space-y-8 pt-6">
+        <header>
+          <h2 className="text-2xl font-display font-bold text-secondary">Aderência por Hábito</h2>
+          <p className="text-xs text-text-muted font-medium mt-1">Visão detalhada do seu compromisso com cada disciplina</p>
+        </header>
         
-        <div className="space-y-4">
-          {habitsData.map(habit => (
-            <div key={habit.id} className="bg-surface border border-surface-border rounded-2xl p-5 md:p-6 shadow-sm">
-              <div className="flex items-start justify-between mb-6">
-                <div className="flex items-center gap-4">
-                  <div 
-                    className="w-12 h-12 rounded-full flex-shrink-0 shadow-inner border border-black/5"
-                    style={{ backgroundColor: habit.color || '#5A8D6E' }}
-                  />
-                  <div>
-                    <h3 className="font-bold text-secondary text-base md:text-lg leading-tight uppercase tracking-tight">{habit.name}</h3>
-                    <p className="text-[10px] text-text-muted mt-1 font-bold uppercase tracking-widest">
-                       {habit.area || "Geral"} &middot; Frequência: {habit.frequency_per_week}x
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 text-xs text-text-muted font-bold">
-                  <span className="flex items-center gap-1.5 px-2 py-1 bg-surface-hover rounded-lg"><CheckCircle2 className="w-3.5 h-3.5 text-primary" /> {habit.totalDone}</span>
-                </div>
-              </div>
+        <div className="space-y-12">
+          {[...goals, { id: null, title: 'Hábitos de Manutenção' }].map((group) => {
+            const groupHabits = habitsData.filter(h => h.goal_id === group.id || (!h.goal_id && group.id === null));
+            if (groupHabits.length === 0) return null;
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-10">
-                <ProgressBar label="Esta Semana" percent={habit.adCurrent} color={habit.color || '#5A8D6E'} />
-                <ProgressBar label="Semana Passada" percent={habit.adLast} color={habit.color || '#5A8D6E'} />
-                <ProgressBar label="Média do Ciclo" percent={habit.adCycle} color={habit.color || '#5A8D6E'} />
+            return (
+              <div key={group.id || 'unlinked'} className="space-y-6">
+                <div className="flex items-center gap-3 border-b border-surface-border pb-4">
+                  <div className={cn(
+                    "w-2 h-2 rounded-full",
+                    group.id ? "bg-primary" : "bg-accent"
+                  )} />
+                  <h3 className="text-[10px] font-bold text-secondary uppercase tracking-[0.4em] font-display">
+                    {group.title}
+                  </h3>
+                  <span className="text-[8px] font-bold text-text-muted uppercase tracking-widest ml-auto">
+                    {groupHabits.length} Itens
+                  </span>
+                </div>
+
+                <div className="space-y-4">
+                  {groupHabits.map(habit => (
+                    <div key={habit.id} className="bg-surface border border-surface-border rounded-2xl p-5 md:p-6 shadow-sm group hover:border-primary/20 transition-all">
+                      <div className="flex items-start justify-between mb-6">
+                        <div className="flex items-center gap-4">
+                          <div 
+                            className="w-12 h-12 rounded-2xl flex-shrink-0 shadow-inner border border-black/5 flex items-center justify-center transition-transform group-hover:scale-110 group-hover:-rotate-3"
+                            style={{ backgroundColor: habit.color || '#5A8D6E' }}
+                          >
+                            <Sparkles className="w-5 h-5 text-white" />
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-secondary text-base md:text-lg leading-tight uppercase tracking-tight">{habit.name}</h3>
+                            <p className="text-[10px] text-text-muted mt-1 font-bold uppercase tracking-widest">
+                               {habit.area || "Geral"} &middot; Frequência: {habit.frequency_per_week}x
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-text-muted font-bold">
+                          <span className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-hover rounded-lg border border-surface-border/50"><CheckCircle2 className="w-3.5 h-3.5 text-primary" /> {habit.totalDone}</span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-10">
+                        <ProgressBar label="Esta Semana" percent={habit.adCurrent} color={habit.color || '#5A8D6E'} />
+                        <ProgressBar label="Semana Passada" percent={habit.adLast} color={habit.color || '#5A8D6E'} />
+                        <ProgressBar label="Média do Ciclo" percent={habit.adCycle} color={habit.color || '#5A8D6E'} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           
           {habitsData.length === 0 && !loading && (
              <div className="text-center py-12 text-sm text-text-muted bg-surface border border-surface-border rounded-xl">

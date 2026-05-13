@@ -78,7 +78,7 @@ export function Pomodoro() {
         </button>
       </header>
 
-      <div className="relative bg-surface border border-surface-border rounded-2xl md:rounded-[2rem] p-6 md:p-12 lg:p-16 shadow-2xl overflow-hidden group min-h-[400px] flex flex-col items-center justify-between card-3d">
+      <div className="relative bg-surface border border-surface-border rounded-2xl md:rounded-[2rem] p-4 md:p-12 lg:p-16 shadow-2xl overflow-hidden group min-h-[400px] flex flex-col items-center justify-between card-3d">
         {/* Top Accent Border */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-80" />
         
@@ -86,7 +86,7 @@ export function Pomodoro() {
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
 
         {/* Mode Selector */}
-        <div className="relative z-10 flex flex-wrap justify-center gap-2 md:gap-3">
+        <div className="relative z-10 flex flex-wrap justify-center gap-1.5 md:gap-3">
           {(Object.keys(MODES) as Mode[]).map((m) => {
             const Icon = MODES[m].icon;
             const active = mode === m;
@@ -95,14 +95,14 @@ export function Pomodoro() {
                 key={m}
                 onClick={() => changeMode(m)}
                 className={cn(
-                  "flex items-center gap-2 md:gap-3 px-4 md:px-6 py-2.5 md:py-3 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-widest transition-all duration-500",
+                  "flex items-center gap-1.5 md:gap-3 px-3 md:px-6 py-2 md:py-3 rounded-xl text-[8px] md:text-[10px] font-bold uppercase tracking-widest transition-all duration-500",
                   active 
                     ? "bg-primary text-white shadow-2xl shadow-primary/30 scale-105" 
                     : "bg-background text-text-muted hover:bg-surface-hover border border-surface-border"
                 )}
               >
-                <Icon className="w-3.5 h-3.5" />
-                {MODES[m].title}
+                <Icon className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                <span className="whitespace-nowrap">{MODES[m].title}</span>
               </button>
             );
           })}
@@ -136,26 +136,26 @@ export function Pomodoro() {
         </div>
 
         {/* Controls */}
-        <div className="relative z-10 flex items-center gap-4">
+        <div className="relative z-10 flex flex-col sm:flex-row items-center gap-3 md:gap-4 w-full sm:w-auto px-4 sm:px-0">
           <button 
             onClick={toggleTimer}
             className={cn(
-              "h-14 md:h-16 px-10 md:px-12 rounded-2xl flex items-center justify-center gap-3 text-white font-bold text-sm uppercase tracking-widest transition-all duration-500 transform active:scale-95 shadow-xl",
+              "h-14 md:h-16 w-full sm:w-auto px-8 md:px-12 rounded-2xl flex items-center justify-center gap-3 text-white font-bold text-sm uppercase tracking-widest transition-all duration-500 transform active:scale-95 shadow-xl",
               isActive 
                 ? "bg-secondary hover:bg-secondary/90 shadow-secondary/20" 
                 : "bg-primary shadow-primary/30 hover:scale-105"
             )}
           >
             {isActive ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current" />}
-            {isActive ? 'Pausar' : 'Iniciar'}
+            <span>{isActive ? 'Pausar' : 'Iniciar'}</span>
           </button>
           
           <button 
             onClick={resetTimer}
-            className="h-14 md:h-16 px-10 md:px-12 rounded-2xl bg-background border border-surface-border text-text-muted flex items-center justify-center gap-3 font-bold text-sm uppercase tracking-widest hover:text-primary hover:bg-surface-hover transition-all active:scale-95"
+            className="h-14 md:h-16 w-full sm:w-auto px-8 md:px-12 rounded-2xl bg-background border border-surface-border text-text-muted flex items-center justify-center gap-3 font-bold text-sm uppercase tracking-widest hover:text-primary hover:bg-surface-hover transition-all active:scale-95"
           >
             <RotateCcw className="w-5 h-5" />
-            Reiniciar
+            <span>Reiniciar</span>
           </button>
         </div>
       </div>

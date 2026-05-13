@@ -46,6 +46,7 @@ export function Habitos() {
   const [loading, setLoading] = useState(true);
   const [habits, setHabits] = useState<any[]>([]);
   const [logs, setLogs] = useState<HabitLog[]>([]);
+  const [goals, setGoals] = useState<any[]>([]);
   const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(() => {
     const today = new Date();
     const day = today.getDay();
@@ -61,6 +62,13 @@ export function Habitos() {
     return day;
   });
 
+  const weeklyProgress = React.useMemo(() => {
+    if (habits.length === 0) return 0;
+    const totalRequired = habits.reduce((acc, h) => acc + (h.frequency_per_week || 0), 0);
+    const completed = logs.filter(l => l.completed).length;
+    return totalRequired > 0 ? Math.min(100, Math.round((completed / totalRequired) * 100)) : 0;
+  }, [habits, logs]);
+
   useEffect(() => {
     if (user) {
       fetchHabitsAndLogs();
@@ -71,14 +79,21 @@ export function Habitos() {
     if (!user) return;
     setLoading(true);
     try {
-      const { data: habitsData } = await supabase
-        .from('habits')
-        .select('*')
-        .eq('user_name', user.name)
-        .order('position', { ascending: true })
-        .order('created_at', { ascending: true });
+      const [habitsRes, goalsRes] = await Promise.all([
+        supabase
+          .from('habits')
+          .select('*')
+          .eq('user_name', user.name)
+          .order('position', { ascending: true }),
+        supabase
+          .from('cycle_outcomes')
+          .select('*')
+          .eq('user_name', user.name)
+          .order('created_at', { ascending: true })
+      ]);
 
-      setHabits(habitsData || []);
+      setHabits(habitsRes.data || []);
+      setGoals(goalsRes.data || []);
 
       const start = format(weekDays[0], 'yyyy-MM-dd');
       const end = format(weekDays[6], 'yyyy-MM-dd');
@@ -236,32 +251,50 @@ export function Habitos() {
           <p className="text-text-muted text-sm md:text-base font-light max-w-sm">“Transforme a consistência em um monumento ao seu propósito.”</p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          <div className="flex items-center justify-between gap-2 bg-surface border border-surface-border rounded-xl p-1 md:p-1.5 transition-all hover:shadow-xl hover:shadow-primary/5">
-            <button 
-              onClick={() => changeWeek(-1)}
-              className="p-2 md:p-2.5 hover:bg-primary/5 rounded-lg transition-all text-text-muted hover:text-primary group"
-            >
-              <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-            </button>
-            <div className="px-3 md:px-4 py-2 text-[8px] md:text-[9px] font-bold text-secondary uppercase tracking-[0.2em] md:tracking-[0.3em] min-w-[100px] md:min-w-[140px] text-center border-l border-r border-surface-border">
-              {formatMonth(selectedWeekStart)}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 sm:gap-6">
+          <div className="flex items-center gap-4 bg-white/50 backdrop-blur-sm border border-primary/10 px-5 py-3 rounded-2xl shadow-sm">
+            <div className="space-y-1">
+              <p className="text-[8px] font-bold text-text-muted uppercase tracking-[0.2em]">Score da Semana</p>
+              <div className="flex items-center gap-3">
+                <span className="text-2xl font-display font-bold text-primary">{weeklyProgress}%</span>
+                <div className="w-24 h-1.5 bg-primary/10 rounded-full overflow-hidden">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${weeklyProgress}%` }}
+                    className="h-full bg-primary"
+                  />
+                </div>
+              </div>
             </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="flex items-center justify-between gap-2 bg-surface border border-surface-border rounded-xl p-1 md:p-1.5 transition-all hover:shadow-xl hover:shadow-primary/5">
+              <button 
+                onClick={() => changeWeek(-1)}
+                className="p-2 md:p-2.5 hover:bg-primary/5 rounded-lg transition-all text-text-muted hover:text-primary group"
+              >
+                <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+              </button>
+              <div className="px-3 md:px-4 py-2 text-[8px] md:text-[9px] font-bold text-secondary uppercase tracking-[0.2em] md:tracking-[0.3em] min-w-[100px] md:min-w-[140px] text-center border-l border-r border-surface-border">
+                {formatMonth(selectedWeekStart)}
+              </div>
+              <button 
+                onClick={() => changeWeek(1)}
+                className="p-2 md:p-2.5 hover:bg-primary/5 rounded-lg transition-all text-text-muted hover:text-primary group"
+              >
+                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </button>
+            </div>
+            
             <button 
-              onClick={() => changeWeek(1)}
-              className="p-2 md:p-2.5 hover:bg-primary/5 rounded-lg transition-all text-text-muted hover:text-primary group"
+              onClick={() => navigate('/metas')}
+              className="h-10 md:h-12 bg-secondary text-white px-6 md:px-8 rounded-xl font-bold text-[8px] md:text-[9px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:scale-105 active:scale-95 transition-all shadow-xl shadow-secondary/20 group"
             >
-              <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              <Plus className="w-3.5 h-3.5 group-hover:rotate-90 transition-transform duration-700" />
+              <span>Novo Hábito</span>
             </button>
           </div>
-          
-          <button 
-            onClick={() => navigate('/metas')}
-            className="h-10 md:h-12 bg-secondary text-white px-6 md:px-8 rounded-xl font-bold text-[8px] md:text-[9px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:scale-105 active:scale-95 transition-all shadow-xl shadow-secondary/20 group"
-          >
-            <Plus className="w-3.5 h-3.5 group-hover:rotate-90 transition-transform duration-700" />
-            <span>Novo Hábito</span>
-          </button>
         </div>
       </header>
 
@@ -285,6 +318,7 @@ export function Habitos() {
                     </div>
                   </th>
                 ))}
+                <th className="p-4 md:p-6 font-bold text-[8px] text-text-muted uppercase tracking-[0.4em] text-center">%</th>
                 <th className="p-2 md:p-4 w-1"></th>
               </tr>
             </thead>
@@ -296,76 +330,121 @@ export function Habitos() {
                     {...provided.droppableProps}
                     ref={provided.innerRef}
                   >
-                    {habits.map((habit, index) => (
-                      <React.Fragment key={habit.id}>
-                        {/* @ts-ignore */}
-                        <Draggable draggableId={habit.id} index={index}>
-                          {(provided, snapshot) => (
-                          <tr 
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            className={cn(
-                              "group transition-all duration-500",
-                              snapshot.isDragging ? "bg-background shadow-2xl z-50 scale-[1.01]" : "hover:bg-primary/[0.02]"
-                            )}
-                            style={{ display: snapshot.isDragging ? 'table' : '', ...provided.draggableProps.style }}
-                          >
-                            <td className="p-4 md:p-6 pl-6 md:pl-8 relative">
-                              <div className="flex items-center gap-3 md:gap-4 relative group-hover:-ml-4 transition-all">
-                                <div 
-                                  {...provided.dragHandleProps} 
-                                  className="text-surface-border hover:text-text-muted cursor-grab active:cursor-grabbing p-1 opacity-0 group-hover:opacity-100 transition-opacity absolute -left-6 md:-left-8"
-                                >
-                                  <GripVertical className="w-4 h-4" />
-                                </div>
-                                <div 
-                                  className="w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center shadow-sm transition-all duration-700 group-hover:scale-110 group-hover:-rotate-6 border border-black/5 flex-shrink-0"
-                                  style={{ backgroundColor: habit.color || '#5E6E5A' }}
-                                >
-                                  <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-white" />
-                                </div>
-                                <div className="min-w-0">
-                                  <h3 className="font-display font-bold text-secondary text-sm md:text-lg group-hover:text-primary transition-colors tracking-tight uppercase leading-tight truncate">{habit.name}</h3>
-                                  <p className="text-[6px] md:text-[8px] text-text-muted font-bold uppercase tracking-[0.2em] flex items-center gap-1.5 mt-0.5 md:mt-1">
-                                     <span className="w-1 h-1 rounded-full bg-primary/20 group-hover:bg-primary/40 transition-colors" />
-                                     {habit.area || "Geral"}
-                                     <span className="w-1 h-1 rounded-full bg-primary/20 group-hover:bg-primary/40 transition-colors" />
-                                     <span className="text-primary">{habit.frequency_per_week}x/SEMANA</span>
-                                  </p>
-                                </div>
+                    {[...goals, { id: null, title: 'Hábitos de Manutenção' }].map((group) => {
+                      const groupHabits = habits.filter(h => h.goal_id === group.id || (!h.goal_id && group.id === null));
+                      if (groupHabits.length === 0) return null;
+
+                      return (
+                        <React.Fragment key={group.id || 'unlinked'}>
+                          <tr className="bg-surface-hover/20">
+                            <td colSpan={10} className="px-6 py-3 border-y border-surface-border/50">
+                              <div className="flex items-center gap-2">
+                                <div className={cn(
+                                  "w-1.5 h-1.5 rounded-full",
+                                  group.id ? "bg-primary" : "bg-accent"
+                                )} />
+                                <span className="text-[9px] font-bold text-secondary uppercase tracking-[0.3em] font-display">
+                                  {group.title}
+                                </span>
                               </div>
                             </td>
-                            
-                            {weekDays.map((date, i) => {
-                              const dateStr = format(date, 'yyyy-MM-dd');
-                              const log = logs.find(l => l.habit_id === habit.id && l.date === dateStr);
-                              const isDone = log?.completed === true;
-                              const isFailed = log?.completed === false;
-
-                              return (
-                                <td key={i} className="p-1 md:p-2 text-center">
-                                  <button 
-                                    onClick={() => toggleHabitStatus(habit.id, date)}
-                                    className={cn(
-                                      "w-8 h-8 md:w-10 md:h-10 rounded-lg flex items-center justify-center transition-all duration-700 mx-auto",
-                                      isDone ? "bg-primary text-white shadow-lg shadow-primary/30 scale-110" :
-                                      isFailed ? "bg-accent/10 border border-accent/20 text-accent" :
-                                      "bg-background border border-surface-border text-transparent hover:border-primary hover:bg-primary/5 group-hover:border-surface-border/80"
-                                    )}
-                                  >
-                                    {isDone && <Check className="w-3.5 h-3.5 md:w-4 md:h-4 stroke-[3]" />}
-                                    {isFailed && <X className="w-3.5 h-3.5 md:w-4 md:h-4 stroke-[3]" />}
-                                  </button>
-                                </td>
-                              );
-                            })}
-
-                            <td className="p-2 md:p-4 w-1"></td>
                           </tr>
-                          )}
-                        </Draggable>
-                      </React.Fragment>
-                    ))}
+                          {groupHabits.map((habit, index) => {
+                            const globalIndex = habits.findIndex(h => h.id === habit.id);
+                            
+                            const habitLogs = logs.filter(l => l.habit_id === habit.id && l.completed);
+                            const completionRate = habit.frequency_per_week > 0 
+                              ? Math.min(100, Math.round((habitLogs.length / habit.frequency_per_week) * 100))
+                              : 0;
+
+                            return (
+                              <React.Fragment key={habit.id}>
+                                {/* @ts-ignore */}
+                                <Draggable draggableId={habit.id} index={globalIndex}>
+                                  {(provided, snapshot) => (
+                                  <tr 
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    className={cn(
+                                      "group transition-all duration-500",
+                                      snapshot.isDragging ? "bg-background shadow-2xl z-50 scale-[1.01]" : "hover:bg-primary/[0.02]"
+                                    )}
+                                    style={{ display: snapshot.isDragging ? 'table' : '', ...provided.draggableProps.style }}
+                                  >
+                                    <td className="p-4 md:p-6 pl-6 md:pl-8 relative">
+                                      <div className="flex items-center gap-3 md:gap-4 relative group-hover:-ml-4 transition-all">
+                                        <div 
+                                          {...provided.dragHandleProps} 
+                                          className="text-surface-border hover:text-text-muted cursor-grab active:cursor-grabbing p-1 opacity-0 group-hover:opacity-100 transition-opacity absolute -left-6 md:-left-8"
+                                        >
+                                          <GripVertical className="w-4 h-4" />
+                                        </div>
+                                        <div 
+                                          className="w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center shadow-sm transition-all duration-700 group-hover:scale-110 group-hover:-rotate-6 border border-black/5 flex-shrink-0"
+                                          style={{ backgroundColor: habit.color || '#5E6E5A' }}
+                                        >
+                                          <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                                        </div>
+                                        <div className="min-w-0">
+                                          <h3 className="font-display font-bold text-secondary text-sm md:text-lg group-hover:text-primary transition-colors tracking-tight uppercase leading-tight truncate">{habit.name}</h3>
+                                          <p className="text-[6px] md:text-[8px] text-text-muted font-bold uppercase tracking-[0.2em] flex items-center gap-1.5 mt-0.5 md:mt-1">
+                                             <span className="w-1 h-1 rounded-full bg-primary/20 group-hover:bg-primary/40 transition-colors" />
+                                             {habit.area || "Geral"}
+                                             <span className="w-1 h-1 rounded-full bg-primary/20 group-hover:bg-primary/40 transition-colors" />
+                                             <span className="text-primary">{habit.frequency_per_week}x/SEMANA</span>
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </td>
+                                    
+                                    {weekDays.map((date, i) => {
+                                      const dateStr = format(date, 'yyyy-MM-dd');
+                                      const log = logs.find(l => l.habit_id === habit.id && l.date === dateStr);
+                                      const isDone = log?.completed === true;
+                                      const isFailed = log?.completed === false;
+        
+                                      return (
+                                        <td key={i} className="p-1 md:p-2 text-center">
+                                          <button 
+                                            onClick={() => toggleHabitStatus(habit.id, date)}
+                                            className={cn(
+                                              "w-8 h-8 md:w-10 md:h-10 rounded-lg flex items-center justify-center transition-all duration-700 mx-auto",
+                                              isDone ? "bg-primary text-white shadow-lg shadow-primary/30 scale-110" :
+                                              isFailed ? "bg-accent/10 border border-accent/20 text-accent" :
+                                              "bg-background border border-surface-border text-transparent hover:border-primary hover:bg-primary/5 group-hover:border-surface-border/80"
+                                            )}
+                                          >
+                                            {isDone && <Check className="w-3.5 h-3.5 md:w-4 md:h-4 stroke-[3]" />}
+                                            {isFailed && <X className="w-3.5 h-3.5 md:w-4 md:h-4 stroke-[3]" />}
+                                          </button>
+                                        </td>
+                                      );
+                                    })}
+
+                                    <td className="p-4 md:p-6 text-center">
+                                      <div className="flex flex-col items-center gap-1">
+                                        <span className={cn(
+                                          "text-[10px] font-display font-bold",
+                                          completionRate >= 100 ? "text-primary" : "text-secondary"
+                                        )}>
+                                          {completionRate}%
+                                        </span>
+                                        <div className="w-10 h-1 bg-surface-border rounded-full overflow-hidden">
+                                          <div className="h-full bg-primary transition-all duration-700" style={{ width: `${completionRate}%` }} />
+                                        </div>
+                                      </div>
+                                    </td>
+        
+                                    <td className="p-2 md:p-4 w-1"></td>
+                                  </tr>
+                                  )}
+                                </Draggable>
+                              </React.Fragment>
+                            );
+                          })}
+                        </React.Fragment>
+                      );
+                    })}
                     {provided.placeholder}
                   </tbody>
                 )}

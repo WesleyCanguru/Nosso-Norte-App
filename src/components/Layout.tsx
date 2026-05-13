@@ -12,7 +12,9 @@ import {
   User,
   Menu,
   X,
-  Calendar
+  Calendar,
+  PanelLeftClose,
+  PanelLeftOpen
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
@@ -35,9 +37,19 @@ const navItems = [
 export function Layout({ user, onLogout }: { user: { name: string }, onLogout: () => void }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem('w12_sidebar_collapsed');
+    return saved === 'true';
+  });
   const location = useLocation();
   const navigate = useNavigate();
   const { cycle } = useCycle();
+
+  const toggleSidebar = () => {
+    const newState = !isSidebarCollapsed;
+    setIsSidebarCollapsed(newState);
+    localStorage.setItem('w12_sidebar_collapsed', String(newState));
+  };
 
   const getCycleProgress = () => {
     if (!cycle) return null;
@@ -73,47 +85,96 @@ export function Layout({ user, onLogout }: { user: { name: string }, onLogout: (
   }, []);
 
   return (
-    <div className="min-h-screen w-full bg-background text-text-main selection:bg-primary selection:text-white pb-12 md:pb-0 md:pl-20 lg:pl-60">
-      {/* Desktop Sidebar (Lg screens) */}
-      <aside className="hidden lg:flex fixed left-0 top-0 h-full w-60 bg-surface/50 backdrop-blur-2xl border-r border-surface-border flex-col z-50">
+    <div className={cn(
+      "min-h-screen w-full bg-background text-text-main selection:bg-primary selection:text-white pb-12 md:pb-0 transition-all duration-700",
+      isSidebarCollapsed ? "md:pl-20" : "md:pl-64"
+    )}>
+      {/* Desktop Sidebar */}
+      <aside className={cn(
+        "hidden md:flex fixed left-0 top-0 h-full bg-surface/50 backdrop-blur-2xl border-r border-surface-border flex-col z-50 transition-all duration-700 overflow-hidden",
+        isSidebarCollapsed ? "w-20" : "w-64"
+      )}>
         <div className="p-6 pb-4">
-          <div className="flex items-center gap-3 mb-10">
-            <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center text-[10px] text-white font-bold shadow-2xl shadow-primary/30 rotate-3 group-hover:rotate-0 transition-transform">NN</div>
-            <div>
-              <span className="oryzo-logo block leading-none text-xl tracking-[-0.08em]">Nosso Norte</span>
-              <span className="text-[7px] font-bold text-text-muted uppercase tracking-[0.4em] mt-1 block opacity-60">ARCHITECTS OF TIME</span>
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center text-[10px] text-white font-bold shadow-2xl shadow-primary/30 rotate-3 flex-shrink-0">NN</div>
+              {!isSidebarCollapsed && (
+                <motion.div 
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="overflow-hidden whitespace-nowrap"
+                >
+                  <span className="oryzo-logo block leading-none text-xl tracking-[-0.08em]">Nosso Norte</span>
+                  <span className="text-[7px] font-bold text-text-muted uppercase tracking-[0.4em] mt-1 block opacity-60">ARCHITECTS</span>
+                </motion.div>
+              )}
             </div>
+            
+            <button 
+              onClick={toggleSidebar}
+              className="text-text-muted hover:text-primary transition-colors p-1"
+            >
+              {isSidebarCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+            </button>
           </div>
           
-          <div className="text-[9px] font-bold text-text-muted uppercase tracking-[0.4em] mb-4 pl-4 opacity-40">NAVEGAÇÃO / 0&bull;1</div>
+          {!isSidebarCollapsed && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.4 }}
+              className="text-[9px] font-bold text-text-muted uppercase tracking-[0.4em] mb-4 pl-4"
+            >
+              NAVEGAÇÃO / 0&bull;1
+            </motion.div>
+          )}
         </div>
         
-        <nav className="flex-1 px-3 space-y-1.5 overflow-y-auto scrollbar-hide">
+        <nav className="flex-1 px-3 space-y-1.5 overflow-y-auto scrollbar-hide py-4">
           {navItems.map((item, index) => (
             <NavLink
               key={item.path}
               to={item.path}
+              title={isSidebarCollapsed ? item.name : ""}
               className={({ isActive }) =>
                 cn(
-                  "flex items-center gap-4 px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] transition-all duration-500 group relative overflow-hidden",
+                  "flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-500 group relative overflow-hidden",
                   isActive 
                     ? "bg-secondary text-white shadow-lg shadow-secondary/15" 
-                    : "text-text-muted hover:bg-surface-hover hover:text-secondary border border-transparent hover:border-surface-border"
+                    : "text-text-muted hover:bg-surface-hover hover:text-secondary border border-transparent hover:border-surface-border",
+                  isSidebarCollapsed ? "justify-center px-0" : ""
                 )
               }
             >
-              <div className="flex items-center gap-3.5 relative z-10 w-full">
-                <item.icon className={cn("w-3.5 h-3.5 transition-transform group-hover:scale-110")} />
-                <span>{item.name}</span>
-                <span className="ml-auto text-[7px] opacity-30 font-mono">0{index + 1}</span>
+              <div className={cn(
+                "flex items-center gap-3.5 relative z-10 w-full",
+                isSidebarCollapsed ? "justify-center" : ""
+              )}>
+                <item.icon className={cn("w-4 h-4 transition-transform group-hover:scale-110 flex-shrink-0")} />
+                {!isSidebarCollapsed && (
+                  <motion.div 
+                    initial={{ opacity: 0, x: -5 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="flex-1 flex items-center justify-between overflow-hidden whitespace-nowrap"
+                  >
+                    <span className="text-[10px] font-bold uppercase tracking-[0.2em]">{item.name}</span>
+                    <span className="text-[7px] opacity-30 font-mono">0{index + 1}</span>
+                  </motion.div>
+                )}
               </div>
             </NavLink>
           ))}
         </nav>
 
-        <div className="p-6 border-t border-surface-border space-y-4">
-          {cycle && cycleInfo && (
-            <div className="px-2 space-y-3 mb-4">
+        <div className={cn(
+          "p-4 md:p-6 border-t border-surface-border space-y-4 transition-all duration-500",
+          isSidebarCollapsed ? "items-center" : ""
+        )}>
+          {cycle && cycleInfo && !isSidebarCollapsed && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="px-2 space-y-3 mb-4"
+            >
               <div className="flex items-center justify-between text-[8px] font-bold text-text-muted uppercase tracking-[0.3em]">
                 <div className="flex items-center gap-1.5">
                   <Calendar className="w-2.5 h-2.5 text-primary" />
@@ -129,56 +190,49 @@ export function Layout({ user, onLogout }: { user: { name: string }, onLogout: (
                   className="h-full bg-primary"
                 />
               </div>
-            </div>
+            </motion.div>
           )}
-          <div className="flex items-center gap-3 p-2">
-            <div className="w-10 h-10 rounded-full bg-background border border-surface-border flex items-center justify-center">
+
+          {isSidebarCollapsed && cycle && cycleInfo && (
+             <div className="flex justify-center mb-2">
+                <div className="w-1.5 h-8 bg-surface-border rounded-full relative overflow-hidden">
+                   <div 
+                    className="absolute bottom-0 left-0 w-full bg-primary transition-all duration-1000" 
+                    style={{ height: `${cycleInfo.progress}%` }}
+                   />
+                </div>
+             </div>
+          )}
+
+          <div className={cn(
+            "flex items-center gap-3 transition-all duration-500",
+            isSidebarCollapsed ? "flex-col justify-center gap-4" : "p-2"
+          )}>
+            <div className="w-10 h-10 rounded-full bg-background border border-surface-border flex items-center justify-center flex-shrink-0">
               <User className="w-5 h-5 text-primary" />
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-secondary truncate">{user.name}</p>
-              <p className="text-[10px] text-text-muted truncate">Ciclo Ativo</p>
-            </div>
+            {!isSidebarCollapsed && (
+              <motion.div 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }}
+                className="flex-1 min-w-0"
+              >
+                <p className="text-sm font-bold text-secondary truncate">{user.name}</p>
+                <p className="text-[10px] text-text-muted truncate">Ciclo Ativo</p>
+              </motion.div>
+            )}
             <button 
               onClick={handleLogout}
-              className="p-2 text-text-muted hover:text-red-500 transition-colors"
+              className={cn(
+                "text-text-muted hover:text-red-500 transition-colors p-2",
+                isSidebarCollapsed ? "hover:bg-red-50 rounded-xl" : ""
+              )}
+              title="Sair"
             >
               <LogOut className="w-4 h-4" />
             </button>
           </div>
         </div>
-      </aside>
-
-      {/* Desktop Sidebar (Md screens - Icons only) */}
-      <aside className="hidden md:flex lg:hidden fixed left-0 top-0 h-full w-20 bg-surface border-r border-surface-border flex-col items-center py-10 z-50">
-        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-[10px] text-white font-bold shadow-2xl shadow-primary/30 mb-10 rotate-3">NN</div>
-        <nav className="flex-1 space-y-5">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              title={item.name}
-              className={({ isActive }) =>
-                cn(
-                  "flex items-center justify-center w-12 h-12 rounded-xl transition-all duration-500",
-                  isActive 
-                    ? "bg-secondary text-white shadow-xl shadow-secondary/20 scale-105" 
-                    : "text-text-muted hover:bg-surface-hover hover:text-secondary border border-transparent hover:border-surface-border"
-                )
-              }
-            >
-              <item.icon className="w-5 h-5" />
-            </NavLink>
-          ))}
-        </nav>
-        
-        <button 
-          onClick={handleLogout}
-          className="w-12 h-12 rounded-xl flex items-center justify-center text-text-muted hover:text-red-500 hover:bg-red-50 transition-all duration-500"
-          title="Sair"
-        >
-          <LogOut className="w-5 h-5" />
-        </button>
       </aside>
 
       {/* Mobile Top Header */}
