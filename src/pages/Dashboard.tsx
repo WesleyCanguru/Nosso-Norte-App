@@ -7,16 +7,19 @@ import {
   ArrowRight,
   TrendingUp,
   Target,
-  Calendar
+  Calendar,
+  Clock,
+  Sparkles
 } from "lucide-react";
 import { useUser } from "@/hooks/useUser";
 import { useCycle } from "@/hooks/useCycle";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { parseISO, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Modal } from "@/components/Modal";
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -26,6 +29,7 @@ export function Dashboard() {
   const [todayHabits, setTodayHabits] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [outcomes, setOutcomes] = useState<any[]>([]);
+  const [selectedGoal, setSelectedGoal] = useState<any>(null);
   const [stats, setStats] = useState({
     habitsDone: 0,
     totalHabits: 0,
@@ -63,86 +67,67 @@ export function Dashboard() {
   endOfWeekDate.setDate(startOfWeekDate.getDate() + 6);
   const endOfWeekStr = format(endOfWeekDate, 'yyyy-MM-dd');
 
-  useEffect(() => {
-    let isValid = true;
-    
-    const fetchDashboardData = async () => {
-      if (!user) return;
-      setLoading(true);
-      console.log("Fetching dashboard data for user:", user.name, "Cycle:", cycle?.id);
+  const fetchDashboardData = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const { data: habits } = await supabase.from('habits').select('*').eq('user_name', user.name);
+      const { data: logs } = await supabase.from('habit_logs')
+        .select('*')
+        .eq('user_name', user.name)
+        .gte('date', startOfWeekStr)
+        .lte('date', endOfWeekStr);
+      const { data: dddTasks } = await supabase.from('tasks').select('*').eq('user_name', user.name).eq('completed', false);
       
-      try {
-        const { data: habits } = await supabase.from('habits').select('*').eq('user_name', user.name);
-        const { data: logs } = await supabase.from('habit_logs')
+      let outcomesData: any[] = [];
+      if (cycle) {
+        const { data: goals } = await supabase
+          .from('cycle_outcomes')
           .select('*')
-          .eq('user_name', user.name)
-          .gte('date', startOfWeekStr)
-          .lte('date', endOfWeekStr);
-        const { data: dddTasks } = await supabase.from('tasks').select('*').eq('user_name', user.name).eq('completed', false);
-        
-        let outcomesData: any[] = [];
-        if (cycle) {
-          console.log("Fetching outcomes for cycle:", cycle.id);
-          const { data: goals, error: goalsError } = await supabase
-            .from('cycle_outcomes')
-            .select('*')
-            .eq('cycle_id', cycle.id)
-            .eq('user_name', user.name);
-          
-          if (goalsError) {
-            console.error("Error fetching outcomes:", goalsError);
-          } else {
-            outcomesData = goals || [];
-            console.log("Outcomes found:", outcomesData.length);
-          }
-        } else {
-          console.warn("No active cycle found for user, skipping outcomes fetch.");
-        }
-
-        if (!isValid) return;
-
-        const mappedHabits = habits?.map(h => {
-          const weeklyCompletions = logs?.filter(l => l.habit_id === h.id && l.completed === true).length || 0;
-          const isDoneToday = logs?.find(l => l.habit_id === h.id && l.date === todayStr && l.completed === true);
-          const isTheoreticallyDone = weeklyCompletions >= (h.frequency_per_week || 7);
-          return {
-            ...h,
-            done: !!isDoneToday || isTheoreticallyDone,
-            isTheoreticallyDone: !isDoneToday && isTheoreticallyDone
-          };
-        }) || [];
-
-        const totalHabits = mappedHabits.length;
-        const habitsDone = mappedHabits.filter(h => h.done).length;
-
-        setTodayHabits(mappedHabits);
-        setTasks(dddTasks || []);
-        setOutcomes(outcomesData);
-
-        setStats({
-          habitsDone,
-          totalHabits,
-          weeklyAdherence: 0,
-          activeTasks: dddTasks?.length || 0,
-          urgentTasks: dddTasks?.filter(t => t.type === 'tem_que').length || 0,
-          maxStreak: 0
-        });
-
-      } catch (error) {
-        if (!isValid) return;
-        console.error("Error fetching dashboard data:", error);
-      } finally {
-        if (isValid) setLoading(false);
+          .eq('cycle_id', cycle.id)
+          .eq('user_name', user.name);
+        outcomesData = goals || [];
       }
-    };
 
+      const mappedHabits = habits?.map(h => {
+        const weeklyCompletions = logs?.filter(l => l.habit_id === h.id && l.completed === true).length || 0;
+        const isDoneToday = logs?.find(l => l.habit_id === h.id && l.date === todayStr && l.completed === true);
+        const isTheoreticallyDone = weeklyCompletions >= (h.frequency_per_week || 7);
+        return {
+          ...h,
+          done: !!isDoneToday || isTheoreticallyDone,
+          isTheoreticallyDone: !isDoneToday && isTheoreticallyDone
+        };
+      }) || [];
+
+      setTodayHabits(mappedHabits);
+      setTasks(dddTasks || []);
+      setOutcomes(outcomesData);
+
+      const totalExpectedPerWeek = habits?.reduce((acc, h) => acc + (h.frequency_per_week || 7), 0) || 0;
+      const weeklyLogsCount = logs?.filter(l => l.completed).length || 0;
+      const weeklyAdherence = totalExpectedPerWeek > 0 ? Math.min(100, Math.round((weeklyLogsCount / totalExpectedPerWeek) * 100)) : 0;
+
+      setStats({
+        habitsDone: mappedHabits.filter(h => h.done).length,
+        totalHabits: mappedHabits.length,
+        weeklyAdherence,
+        activeTasks: dddTasks?.length || 0,
+        urgentTasks: dddTasks?.filter(t => t.type === 'tem_que').length || 0,
+        maxStreak: 0
+      });
+
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     if (user) {
       fetchDashboardData();
     }
-
-    return () => {
-      isValid = false;
-    };
   }, [user, cycle]);
 
   const toggleHabitStatus = async (habitId: string) => {
@@ -365,7 +350,8 @@ export function Dashboard() {
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.05 }}
               viewport={{ once: true }}
-              className="group p-5 md:p-6 rounded-3xl border border-surface-border transition-all duration-700 flex flex-col justify-between h-36 md:h-40 card-3d bg-surface hover:border-primary/20"
+              onClick={() => setSelectedGoal(goal)}
+              className="group p-5 md:p-6 rounded-3xl border border-surface-border transition-all duration-700 flex flex-col justify-between h-36 md:h-40 card-3d bg-surface hover:border-primary/20 cursor-pointer"
             >
               <div className="flex justify-between items-start">
                 <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl border border-primary/10 bg-primary/5 flex items-center justify-center text-primary transition-all duration-700 group-hover:scale-110 group-hover:-rotate-6">
@@ -509,6 +495,85 @@ export function Dashboard() {
           )}
         </div>
       </div>
+
+      <AnimatePresence>
+        {selectedGoal && (
+          <Modal 
+            isOpen={!!selectedGoal} 
+            onClose={() => setSelectedGoal(null)} 
+            title={selectedGoal.title}
+          >
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <p className="text-[10px] font-bold text-text-muted uppercase tracking-[0.4em]">Hábitos Estratégicos</p>
+                <div className="grid grid-cols-1 gap-2">
+                  {todayHabits.filter(h => h.goal_id === selectedGoal.id).length > 0 ? (
+                    todayHabits.filter(h => h.goal_id === selectedGoal.id).map((habit, i) => (
+                      <motion.div 
+                        key={habit.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.05 }}
+                        className={cn(
+                          "bg-surface-hover/30 border border-surface-border p-4 rounded-2xl flex items-center gap-4 group transition-all",
+                          habit.done ? "opacity-60" : ""
+                        )}
+                      >
+                        <div 
+                          className="w-10 h-10 rounded-xl flex items-center justify-center text-white flex-shrink-0"
+                          style={{ backgroundColor: habit.color || '#5E6E5A' }}
+                        >
+                          <Sparkles className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold uppercase truncate text-secondary">{habit.name}</p>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <span className="text-[8px] font-bold text-text-muted uppercase tracking-[0.2em]">{habit.area || "Geral"}</span>
+                            <span className="w-1 h-1 rounded-full bg-surface-border" />
+                            <span className="text-[8px] font-bold text-primary uppercase tracking-[0.2em]">{habit.frequency_per_week}x/Semana</span>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => toggleHabitStatus(habit.id)}
+                          disabled={habit.isTheoreticallyDone}
+                          className={cn(
+                            "w-8 h-8 rounded-full border flex items-center justify-center transition-all",
+                            habit.done 
+                              ? "bg-primary border-primary text-white shadow-md shadow-primary/20" 
+                              : "border-surface-border hover:border-primary text-primary"
+                          )}
+                        >
+                          {habit.done ? <Zap className="w-3.5 h-3.5 fill-current" /> : <div className="w-1.5 h-1.5 rounded-full bg-surface-border" />}
+                        </button>
+                      </motion.div>
+                    ))
+                  ) : (
+                    <div className="py-10 flex flex-col items-center justify-center gap-3 bg-surface-hover/10 rounded-2xl border border-dashed border-surface-border">
+                      <Sparkles className="w-6 h-6 text-text-muted/20" />
+                      <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest text-center px-6 leading-relaxed">Nenhum hábito vinculado a esta meta</p>
+                      <button 
+                        onClick={() => { setSelectedGoal(null); navigate("/metas"); }} 
+                        className="text-[9px] font-bold text-primary uppercase tracking-widest underline underline-offset-4"
+                      >
+                        Configurar agora
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="pt-4 border-t border-surface-border">
+                <button 
+                  onClick={() => setSelectedGoal(null)}
+                  className="w-full py-5 bg-secondary text-white rounded-xl font-bold uppercase text-[9px] tracking-[0.3em] hover:bg-secondary/90 transition-colors shadow-lg"
+                >
+                  Fechar Visualização
+                </button>
+              </div>
+            </div>
+          </Modal>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

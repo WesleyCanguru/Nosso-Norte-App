@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Plus, 
   Trash2, 
@@ -6,12 +6,14 @@ import {
   CheckCircle2,
   Circle,
   MoreVertical,
-  Target
+  Target,
+  GripVertical
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/hooks/useUser";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "motion/react";
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
 type TaskType = 'quero_fazer' | 'tem_que';
 
@@ -21,6 +23,7 @@ interface Task {
   type: TaskType;
   completed: boolean;
   created_at: string;
+  position?: number;
 }
 
 export function DDD() {
@@ -43,6 +46,7 @@ export function DDD() {
         .select('*')
         .eq('user_name', user.name)
         .eq('completed', false)
+        .order('position', { ascending: true })
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -66,11 +70,15 @@ export function DDD() {
     if (!title || !user) return;
 
     try {
+      const typeTasks = tasks.filter(t => t.type === type);
+      const maxPos = typeTasks.length > 0 ? Math.max(...typeTasks.map(t => t.position || 0)) : -1;
+      
       const { data, error } = await supabase
         .from('tasks')
         .insert([{
           title,
           type,
+          position: maxPos + 1,
           user_name: user.name,
           completed: false
         }])
@@ -78,7 +86,7 @@ export function DDD() {
         .single();
 
       if (error) throw error;
-      setTasks([data, ...tasks]);
+      setTasks([...tasks, data]);
       setNewTitle({ ...newTitle, [type]: '' });
     } catch (error) {
       console.error("Error adding task:", error);
@@ -133,8 +141,57 @@ export function DDD() {
     }
   };
 
+  const handleDragEnd = async (result: DropResult) => {
+    if (!result.destination) return;
+
+    const sourceColumn = result.source.droppableId as TaskType;
+    const destColumn = result.destination.droppableId as TaskType;
+    const sourceIndex = result.source.index;
+    const destIndex = result.destination.index;
+
+    if (sourceColumn === destColumn && sourceIndex === destIndex) return;
+
+    const sourceTasks = tasks.filter(t => t.type === sourceColumn).sort((a, b) => (a.position || 0) - (b.position || 0));
+    const destTasks = sourceColumn === destColumn ? sourceTasks : tasks.filter(t => t.type === destColumn).sort((a, b) => (a.position || 0) - (b.position || 0));
+    
+    const [movedTask] = sourceTasks.splice(sourceIndex, 1);
+    
+    if (sourceColumn === destColumn) {
+      sourceTasks.splice(destIndex, 0, movedTask);
+      
+      const newTasks = tasks.filter(t => t.type !== sourceColumn);
+      const updatedTasks = sourceTasks.map((t, idx) => ({ ...t, position: idx }));
+      setTasks([...newTasks, ...updatedTasks]);
+
+      // Update in DB
+      for (let i = 0; i < updatedTasks.length; i++) {
+        supabase.from('tasks').update({ position: i }).eq('id', updatedTasks[i].id).then();
+      }
+    } else {
+      movedTask.type = destColumn;
+      destTasks.splice(destIndex, 0, movedTask);
+      
+      const newTasks = tasks.filter(t => t.type !== sourceColumn && t.type !== destColumn);
+      const updatedSource = sourceTasks.map((t, idx) => ({ ...t, position: idx }));
+      const updatedDest = destTasks.map((t, idx) => ({ ...t, position: idx }));
+      
+      setTasks([...newTasks, ...updatedSource, ...updatedDest]);
+
+      // Update type of moved task
+      await supabase.from('tasks').update({ type: destColumn }).eq('id', movedTask.id).then();
+
+      // Update positions in DB
+      for (let i = 0; i < updatedSource.length; i++) {
+        supabase.from('tasks').update({ position: i }).eq('id', updatedSource[i].id).then();
+      }
+      for (let i = 0; i < updatedDest.length; i++) {
+        supabase.from('tasks').update({ position: i }).eq('id', updatedDest[i].id).then();
+      }
+    }
+  };
+
     const renderColumn = (type: TaskType, title: string, subtitle: string, gradient: string) => {
-      const filteredTasks = tasks.filter(t => t.type === type);
+      const filteredTasks = tasks.filter(t => t.type === type).sort((a, b) => (a.position || 0) - (b.position || 0));
       
       return (
         <div className="flex-1 min-w-full lg:min-w-[340px] space-y-6 md:space-y-8">
@@ -168,41 +225,58 @@ export function DDD() {
             </div>
   
             <div className="space-y-2 md:space-y-3">
-              <AnimatePresence initial={false}>
-                {filteredTasks.map((task) => (
-                  <motion.div 
-                    key={task.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="bg-surface border border-surface-border rounded-xl md:rounded-2xl p-3 md:p-4 flex items-center gap-3 md:gap-4 group hover:border-primary/30 transition-all shadow-sm hover:shadow-2xl hover:shadow-primary/5 card-3d overflow-hidden"
-                  >
-                    <button 
-                      onClick={() => toggleTask(task.id, task.completed)}
-                      className="text-text-muted hover:text-primary transition-all flex-shrink-0 transform hover:scale-110 active:scale-90"
-                    >
-                      <Circle className="w-5 h-5 md:w-6 md:h-6" />
-                    </button>
-                    <span className="flex-1 text-[9px] md:text-[10px] font-bold text-secondary uppercase tracking-widest truncate group-hover:text-primary transition-colors">{task.title}</span>
-                    
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0">
-                      <button 
-                        onClick={() => switchType(task.id, task.type)}
-                        title="Mover coluna"
-                        className="p-1.5 md:p-2 text-text-muted hover:text-primary hover:bg-primary/5 rounded-lg transition-all"
-                      >
-                        <ArrowLeftRight className="w-3 h-3 md:w-3.5 md:h-3.5" />
-                      </button>
-                      <button 
-                        onClick={() => deleteTask(task.id)}
-                        className="p-1.5 md:p-2 text-text-muted hover:text-accent hover:bg-accent/10 rounded-lg transition-all"
-                      >
-                        <Trash2 className="w-3 h-3 md:w-3.5 md:h-3.5" />
-                      </button>
-                    </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
+              <Droppable droppableId={type}>
+                {(provided) => (
+                  <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2 md:space-y-3 min-h-[50px]">
+                    {filteredTasks.map((task, index) => (
+                      <React.Fragment key={task.id}>
+                        {/* @ts-ignore */}
+                        <Draggable draggableId={task.id} index={index}>
+                          {(provided, snapshot) => (
+                          <div 
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            className={cn(
+                              "bg-surface border border-surface-border rounded-xl md:rounded-2xl p-3 md:p-4 flex items-center gap-3 md:gap-4 group hover:border-primary/30 shadow-sm card-3d overflow-hidden",
+                              snapshot.isDragging ? "shadow-2xl shadow-primary/20 scale-105 z-50 border-primary" : "hover:shadow-2xl hover:shadow-primary/5 transition-all"
+                            )}
+                            style={{...provided.draggableProps.style }}
+                          >
+                            <div {...provided.dragHandleProps} className="text-surface-border hover:text-text-muted transition-colors cursor-grab active:cursor-grabbing p-1 -ml-2 rounded-lg">
+                              <GripVertical className="w-4 h-4" />
+                            </div>
+                            <button 
+                              onClick={() => toggleTask(task.id, task.completed)}
+                              className="text-text-muted hover:text-primary transition-all flex-shrink-0 transform hover:scale-110 active:scale-90"
+                            >
+                              <Circle className="w-5 h-5 md:w-6 md:h-6" />
+                            </button>
+                            <span className="flex-1 text-[9px] md:text-[10px] font-bold text-secondary uppercase tracking-widest truncate group-hover:text-primary transition-colors">{task.title}</span>
+                            
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0">
+                              <button 
+                                onClick={() => switchType(task.id, task.type)}
+                                title="Mover coluna"
+                                className="p-1.5 md:p-2 text-text-muted hover:text-primary hover:bg-primary/5 rounded-lg transition-all"
+                              >
+                                <ArrowLeftRight className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                              </button>
+                              <button 
+                                onClick={() => deleteTask(task.id)}
+                                className="p-1.5 md:p-2 text-text-muted hover:text-accent hover:bg-accent/10 rounded-lg transition-all"
+                              >
+                                <Trash2 className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                          )}
+                        </Draggable>
+                      </React.Fragment>
+                    ))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
               
               {filteredTasks.length === 0 && (
                 <div className="py-12 md:py-16 text-center border-2 border-dashed border-surface-border/50 rounded-2xl md:rounded-3xl bg-surface/30">
@@ -232,6 +306,7 @@ export function DDD() {
           <p className="text-text-muted text-base md:text-lg max-w-xl font-light">“A mente é para criar, não para armazenar. Esvazie o supérfluo, valide o essencial.”</p>
         </header>
   
+      <DragDropContext onDragEnd={handleDragEnd}>
         <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
           {renderColumn(
             'quero_fazer', 
@@ -247,6 +322,7 @@ export function DDD() {
             'bg-primary shadow-primary/40'
           )}
         </div>
+      </DragDropContext>
       </div>
     );
 }

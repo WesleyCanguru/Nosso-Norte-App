@@ -215,7 +215,6 @@ export function Metas() {
   };
 
   const deleteHabit = async (id: string) => {
-    if (!confirm("Excluir este hábito irreparavelmente?")) return;
     try {
       await supabase.from('habit_logs').delete().eq('habit_id', id);
       await supabase.from('habits').delete().eq('id', id);
@@ -317,62 +316,149 @@ export function Metas() {
         </div>
       </section>
 
-      <section className="space-y-8">
-        <header className="flex flex-col md:flex-row md:items-end justify-between gap-5">
+      <section className="space-y-12">
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-5 border-b border-surface-border pb-8">
           <div className="space-y-2">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 md:w-10 md:h-10 bg-primary/10 rounded-xl flex items-center justify-center">
                 <Target className="w-4 h-4 text-primary" />
               </div>
-              <h2 className="text-lg md:text-2xl font-display font-bold text-secondary uppercase tracking-tight">Grandes Vitórias</h2>
+              <h2 className="text-xl md:text-3xl font-display font-bold text-secondary uppercase tracking-tight">Arquitetura de Sucesso</h2>
             </div>
-            <p className="text-text-muted text-[10px] md:text-xs max-w-xl font-light">Escolha as suas grandes metas inegociáveis. Se tudo mais falhar, estas são as vitórias que definirão o sucesso do seu ciclo.</p>
+            <p className="text-text-muted text-[10px] md:text-xs max-w-xl font-light">Mapeie seus hábitos diretamente às suas grandes metas. Cada ação deve servir ao seu propósito maior.</p>
           </div>
-          <div className="flex items-center gap-2 bg-surface border border-surface-border p-1.5 rounded-xl md:min-w-[300px]">
-            <input type="text" value={newOutcome} onChange={(e) => setNewOutcome(e.target.value)} placeholder="Descreva a meta..." className="flex-1 bg-transparent px-3 py-1.5 text-[10px] font-medium text-secondary outline-none"/>
-            <button onClick={addOutcome} className="bg-primary text-white p-2 rounded-lg hover:scale-105 transition-transform"><Plus className="w-3.5 h-3.5"/></button>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex items-center gap-2 bg-surface border border-surface-border p-1.5 rounded-xl md:min-w-[300px]">
+              <input 
+                type="text" 
+                value={newOutcome} 
+                onChange={(e) => setNewOutcome(e.target.value)} 
+                placeholder="Nova Grande Vitória..." 
+                className="flex-1 bg-transparent px-3 py-1.5 text-[10px] font-bold text-secondary outline-none uppercase tracking-widest placeholder:text-text-muted/50"
+              />
+              <button onClick={addOutcome} className="bg-primary text-white p-2 rounded-lg hover:scale-105 transition-transform"><Plus className="w-3.5 h-3.5"/></button>
+            </div>
+            <button onClick={() => { resetForm(); setIsModalOpen(true); }} className="bg-secondary text-white h-11 px-6 rounded-xl font-bold flex items-center justify-center gap-2 hover:scale-105 transition-all shadow-xl uppercase text-[9px] tracking-widest"><Plus className="w-3.5 h-3.5"/><span>Novo Hábito</span></button>
           </div>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {outcomes.map((o, idx) => (
-            <motion.div key={o.id} className="bg-surface border border-surface-border rounded-2xl p-5 md:p-6 space-y-3 group hover:shadow-xl transition-all relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-4 opacity-5"><span className="text-5xl font-display font-bold italic">{idx + 1}</span></div>
-              <div className="w-8 h-8 bg-primary/5 rounded-lg flex items-center justify-center"><Target className="w-3.5 h-3.5 text-primary" /></div>
-              <h3 className="text-base md:text-lg font-display font-bold text-secondary uppercase leading-tight pr-8 line-clamp-3">{o.title}</h3>
-              <div className="flex justify-end pt-2 border-t border-surface-border/50">
-                <button onClick={async () => { if(confirm("Remover meta?")) { await supabase.from('cycle_outcomes').delete().eq('id', o.id).eq('user_name', user.name); fetchOutcomes(); } }} className="text-text-muted hover:text-red-500 transition-all"><Trash2 className="w-3 h-3"/></button>
+        <div className="space-y-16">
+          {/* Metas Principais e seus Hábitos */}
+          {outcomes.map((goal, idx) => (
+            <div key={goal.id} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              <div className="lg:col-span-4 sticky top-24">
+                <motion.div 
+                  initial={{ opacity: 0, x: -20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  className="bg-surface border border-surface-border rounded-[2rem] p-8 space-y-4 shadow-sm relative overflow-hidden group hover:border-primary/20 transition-all"
+                >
+                  <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity"><span className="text-7xl font-display font-bold italic">{idx + 1}</span></div>
+                  <div className="w-12 h-12 bg-primary/5 rounded-2xl flex items-center justify-center border border-primary/10 shadow-inner group-hover:scale-110 transition-transform">
+                    <Target className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="space-y-2 relative z-10">
+                    <p className="text-[8px] font-bold text-primary uppercase tracking-[0.4em]">Meta Inegociável</p>
+                    <h3 className="text-xl md:text-2xl font-display font-bold text-secondary uppercase leading-none tracking-tight">{goal.title}</h3>
+                  </div>
+                  <div className="pt-4 flex items-center justify-between border-t border-surface-border/50">
+                    <span className="text-[8px] font-bold text-text-muted uppercase tracking-widest">
+                      {habits.filter(h => h.goal_id === goal.id).length} Hábitos Vinculados
+                    </span>
+                    <button 
+                      onClick={async () => { 
+                        if(confirm("Tem certeza que deseja excluir esta meta?")) {
+                          await supabase.from('cycle_outcomes').delete().eq('id', goal.id).eq('user_name', user.name); 
+                          fetchOutcomes(); 
+                        }
+                      }} 
+                      className="p-2 text-text-muted hover:text-red-500 transition-all"
+                    >
+                      <Trash2 className="w-4 h-4"/>
+                    </button>
+                  </div>
+                </motion.div>
               </div>
-            </motion.div>
-          ))}
-        </div>
-      </section>
 
-      <section className="space-y-8">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-5 border-b border-surface-border pb-5">
-          <h2 className="text-xl md:text-3xl font-display font-bold text-secondary uppercase tracking-tighter">Gestão de Hábitos</h2>
-          <button onClick={() => { resetForm(); setIsModalOpen(true); }} className="bg-secondary text-white h-10 md:h-12 px-6 md:px-8 rounded-xl font-bold flex items-center justify-center gap-2 hover:scale-105 transition-all shadow-xl uppercase text-[8px] md:text-[9px] tracking-widest"><Plus className="w-3.5 h-3.5"/><span>Novo Hábito</span></button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredHabits.map((habit) => (
-            <div key={habit.id} className="bg-surface border border-surface-border rounded-2xl p-5 space-y-4 group hover:shadow-xl transition-all shadow-sm">
-                <div className="flex justify-between items-start">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center border border-black/5" style={{ backgroundColor: habit.color || '#5E6E5A' }}>
-                    <Sparkles className="w-4 h-4 text-white" />
-                  </div>
-                  <div className="flex gap-1.5">
-                    <button onClick={() => handleEdit(habit)} className="p-1.5 text-text-muted hover:text-primary transition-all"><Pencil className="w-3 h-3"/></button>
-                    <button onClick={() => deleteHabit(habit.id)} className="p-1.5 text-text-muted hover:text-red-500 transition-all"><Trash2 className="w-3 h-3"/></button>
-                  </div>
+              <div className="lg:col-span-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {habits.filter(h => h.goal_id === goal.id).map((habit) => (
+                    <motion.div 
+                      key={habit.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true }}
+                      className="bg-white/40 backdrop-blur-sm border border-surface-border rounded-3xl p-6 space-y-4 group hover:shadow-xl hover:bg-white transition-all border-dashed"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center border border-black/5 shadow-sm" style={{ backgroundColor: habit.color || '#5E6E5A' }}>
+                          <Sparkles className="w-4 h-4 text-white" />
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={() => handleEdit(habit)} className="p-2 bg-surface border border-surface-border rounded-lg text-text-muted hover:text-primary transition-all"><Pencil className="w-3 h-3"/></button>
+                          <button onClick={() => deleteHabit(habit.id)} className="p-2 bg-surface border border-surface-border rounded-lg text-text-muted hover:text-red-500 transition-all"><Trash2 className="w-3 h-3"/></button>
+                        </div>
+                      </div>
+                      <h3 className="text-base font-display font-bold text-secondary uppercase tracking-tight truncate">{habit.name}</h3>
+                      <div className="flex items-center justify-between pt-3 border-t border-surface-border/30">
+                        <span className="text-[8px] font-bold text-text-muted uppercase tracking-[0.2em]">{habit.category}</span>
+                        <div className="flex items-center gap-1.5 text-[9px] font-bold text-primary"><Zap className="w-3 h-3" /> {habit.frequency_per_week}x/Semana</div>
+                      </div>
+                    </motion.div>
+                  ))}
+                  
+                  {/* Botão de adicionar hábito rápido já vinculado à meta */}
+                  <button 
+                    onClick={() => { resetForm(); setFormData(prev => ({ ...prev, goal_id: goal.id })); setIsModalOpen(true); }}
+                    className="border-2 border-dashed border-surface-border rounded-3xl flex flex-col items-center justify-center gap-3 p-8 opacity-40 hover:opacity-100 hover:border-primary/50 transition-all group"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-surface-border flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                      <Plus className="w-5 h-5 text-text-muted group-hover:text-primary" />
+                    </div>
+                    <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Adicionar hábito à meta</span>
+                  </button>
                 </div>
-                <h3 className="text-base md:text-lg font-display font-bold text-secondary uppercase tracking-tight truncate">{habit.name}</h3>
-                <div className="flex items-center justify-between pt-2 border-t border-surface-border/50">
-                  <span className="text-[8px] font-bold text-text-muted uppercase tracking-[0.2em]">{habit.category}</span>
-                  <div className="flex items-center gap-1 text-[8px] font-bold text-primary"><Zap className="w-2.5 h-2.5" /> {habit.frequency_per_week}x/Semana</div>
-                </div>
+              </div>
             </div>
           ))}
+
+          {/* Hábitos Independentes */}
+          {habits.filter(h => !h.goal_id).length > 0 && (
+             <div className="space-y-8 pt-8 border-t border-surface-border/50">
+               <div className="flex items-center gap-3">
+                 <div className="w-8 h-8 md:w-10 md:h-10 bg-accent/10 rounded-xl flex items-center justify-center">
+                   <Zap className="w-4 h-4 text-accent" />
+                 </div>
+                 <h2 className="text-xl md:text-2xl font-display font-bold text-secondary uppercase tracking-tight">Hábitos de Manutenção</h2>
+               </div>
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                 {habits.filter(h => !h.goal_id).map((habit) => (
+                   <motion.div 
+                     key={habit.id}
+                     initial={{ opacity: 0, scale: 0.95 }}
+                     whileInView={{ opacity: 1, scale: 1 }}
+                     viewport={{ once: true }}
+                     className="bg-surface border border-surface-border rounded-2xl p-5 space-y-4 group hover:shadow-xl transition-all shadow-sm"
+                   >
+                     <div className="flex justify-between items-start">
+                       <div className="w-10 h-10 rounded-xl flex items-center justify-center border border-black/5" style={{ backgroundColor: habit.color || '#5E6E5A' }}>
+                         <Sparkles className="w-4 h-4 text-white" />
+                       </div>
+                       <div className="flex gap-1.5">
+                         <button onClick={() => handleEdit(habit)} className="p-1.5 text-text-muted hover:text-primary transition-all"><Pencil className="w-3 h-3"/></button>
+                         <button onClick={() => deleteHabit(habit.id)} className="p-1.5 text-text-muted hover:text-red-500 transition-all"><Trash2 className="w-3 h-3"/></button>
+                       </div>
+                     </div>
+                     <h3 className="text-base font-display font-bold text-secondary uppercase tracking-tight truncate">{habit.name}</h3>
+                     <div className="flex items-center justify-between pt-2 border-t border-surface-border/50">
+                       <span className="text-[8px] font-bold text-text-muted uppercase tracking-[0.2em]">{habit.category}</span>
+                       <div className="flex items-center gap-1 text-[8px] font-bold text-primary"><Zap className="w-2.5 h-2.5" /> {habit.frequency_per_week}x/Semana</div>
+                     </div>
+                   </motion.div>
+                 ))}
+               </div>
+             </div>
+          )}
         </div>
       </section>
 

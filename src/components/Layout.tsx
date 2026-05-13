@@ -55,11 +55,9 @@ export function Layout({ user, onLogout }: { user: { name: string }, onLogout: (
   const cycleInfo = getCycleProgress();
 
   const handleLogout = async () => {
-    if (confirm("Deseja realmente encerrar sua sessão?")) {
-      localStorage.removeItem('w12_user');
-      onLogout();
-      navigate("/");
-    }
+    localStorage.removeItem('w12_user');
+    onLogout();
+    navigate("/");
   };
 
   useEffect(() => {
