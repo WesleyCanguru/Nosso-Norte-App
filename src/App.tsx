@@ -17,7 +17,6 @@ import { Bau } from "./pages/Bau";
 import { Auth } from "./components/Auth";
 import { SetupRequired } from "./components/SetupRequired";
 import { Session } from "@supabase/supabase-js";
-import { clearUserData } from "./lib/seed";
 
 export default function App() {
   const [user, setUser] = useState<{ name: string } | null>(null);
@@ -30,15 +29,6 @@ export default function App() {
     if (savedUser) {
       const parsedUser = JSON.parse(savedUser);
       setUser(parsedUser);
-      
-      // Limpeza única para Wesley e Sarah conforme solicitado
-      const cleanupKey = `w12_cleanup_${parsedUser.name}`;
-      if ((parsedUser.name === 'Wesley' || parsedUser.name === 'Sarah') && !localStorage.getItem(cleanupKey)) {
-        clearUserData(parsedUser.name).then(() => {
-          localStorage.setItem(cleanupKey, 'true');
-          window.location.reload(); // Recarrega para garantir que os dados sumiram
-        });
-      }
     }
     setLoading(false);
   }, []);

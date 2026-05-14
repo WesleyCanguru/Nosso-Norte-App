@@ -1,6 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 
-export const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
+export let supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL || '';
+if (supabaseUrl) {
+  supabaseUrl = supabaseUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '');
+}
 export const supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
