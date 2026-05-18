@@ -116,24 +116,63 @@ export function Habitos() {
   const handleDragEnd = async (result: DropResult) => {
     if (!result.destination) return;
 
-    const sourceIndex = result.source.index;
-    const destIndex = result.destination.index;
+    const { source, destination } = result;
 
-    if (sourceIndex === destIndex) return;
+    if (source.droppableId === destination.droppableId && source.index === destination.index) return;
 
-    const items = [...habits];
-    const [reorderedItem] = items.splice(sourceIndex, 1);
-    items.splice(destIndex, 0, reorderedItem);
+    const sourceGoalId = source.droppableId === 'unlinked' ? null : source.droppableId;
+    const destGoalId = destination.droppableId === 'unlinked' ? null : destination.droppableId;
 
-    const updatedItems = items.map((t, index) => ({
-      ...t,
-      position: index
-    }));
+    const newHabits = [...habits];
 
-    setHabits(updatedItems);
+    const sourceHabits = newHabits.filter(h => h.goal_id === sourceGoalId);
+    const destHabits = sourceGoalId === destGoalId ? sourceHabits : newHabits.filter(h => h.goal_id === destGoalId);
 
-    for (let i = 0; i < updatedItems.length; i++) {
-        supabase.from('habits').update({ position: i }).eq('id', updatedItems[i].id).then();
+    const [movedHabit] = sourceHabits.splice(source.index, 1);
+    
+    if (sourceGoalId !== destGoalId) {
+      movedHabit.goal_id = destGoalId;
+    }
+
+    destHabits.splice(destination.index, 0, movedHabit);
+
+    const updatedHabitsToSave: typeof habits = [];
+
+    const updateGroupPositions = (groupArray: typeof habits) => {
+      groupArray.forEach((h, idx) => {
+        const globalRef = newHabits.find(item => item.id === h.id);
+        if (globalRef && (globalRef.position !== idx || globalRef.goal_id !== h.goal_id)) {
+           globalRef.position = idx;
+           updatedHabitsToSave.push(globalRef);
+        }
+      });
+    };
+
+    if (sourceGoalId === destGoalId) {
+       updateGroupPositions(destHabits);
+    } else {
+       updateGroupPositions(sourceHabits);
+       updateGroupPositions(destHabits);
+    }
+
+    // Assign positions to all habits to be sure
+    const finalHabits = [...habits].map(h => {
+       const found = updatedHabitsToSave.find(u => u.id === h.id);
+       return found ? { ...h, position: found.position, goal_id: found.goal_id } : h;
+    });
+    
+    // Actually, it's better to just reconstruct newHabits to match visually immediately
+    const reorderedHabits: typeof habits = [];
+    [...goals, { id: null, title: '' }].forEach(g => {
+        const goalId = g.id;
+        const group = finalHabits.filter(h => h.goal_id === goalId).sort((a,b) => (a.position || 0) - (b.position || 0));
+        reorderedHabits.push(...group);
+    });
+
+    setHabits(reorderedHabits);
+
+    for (const h of updatedHabitsToSave) {
+        supabase.from('habits').update({ position: h.position, goal_id: h.goal_id }).eq('id', h.id).then();
     }
   };
 
@@ -323,35 +362,36 @@ export function Habitos() {
               </tr>
             </thead>
             <DragDropContext onDragEnd={handleDragEnd}>
-              <Droppable droppableId="habitos-list" direction="vertical">
-                {(provided) => (
-                  <tbody 
-                    className="divide-y divide-surface-border"
-                    {...provided.droppableProps}
-                    ref={provided.innerRef}
-                  >
-                    {[...goals, { id: null, title: 'Hábitos de Manutenção' }].map((group) => {
-                      const groupHabits = habits.filter(h => h.goal_id === group.id || (!h.goal_id && group.id === null));
-                      if (groupHabits.length === 0) return null;
+              {[...goals, { id: null, title: 'Hábitos de Manutenção' }].map((group) => {
+                const groupHabits = habits.filter(h => h.goal_id === group.id || (!h.goal_id && group.id === null));
+                if (groupHabits.length === 0) return null;
+                const groupId = group.id || 'unlinked';
 
-                      return (
-                        <React.Fragment key={group.id || 'unlinked'}>
-                          <tr className="bg-surface-hover/20">
-                            <td colSpan={10} className="px-6 py-3 border-y border-surface-border/50">
-                              <div className="flex items-center gap-2">
-                                <div className={cn(
-                                  "w-1.5 h-1.5 rounded-full",
-                                  group.id ? "bg-primary" : "bg-accent"
-                                )} />
-                                <span className="text-[9px] font-bold text-secondary uppercase tracking-[0.3em] font-display">
-                                  {group.title}
-                                </span>
-                              </div>
-                            </td>
-                          </tr>
+                return (
+                  <React.Fragment key={groupId}>
+                    <tbody className="divide-y divide-surface-border">
+                      <tr className="bg-surface-hover/20">
+                        <td colSpan={10} className="px-6 py-3 border-y border-surface-border/50">
+                          <div className="flex items-center gap-2">
+                            <div className={cn(
+                              "w-1.5 h-1.5 rounded-full",
+                              group.id ? "bg-primary" : "bg-accent"
+                            )} />
+                            <span className="text-[9px] font-bold text-secondary uppercase tracking-[0.3em] font-display">
+                              {group.title}
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                    <Droppable droppableId={groupId} direction="vertical" type="habit">
+                      {(provided) => (
+                        <tbody 
+                          className="divide-y divide-surface-border"
+                          {...provided.droppableProps}
+                          ref={provided.innerRef}
+                        >
                           {groupHabits.map((habit, index) => {
-                            const globalIndex = habits.findIndex(h => h.id === habit.id);
-                            
                             const habitLogs = logs.filter(l => l.habit_id === habit.id && l.completed);
                             const completionRate = habit.frequency_per_week > 0 
                               ? Math.min(100, Math.round((habitLogs.length / habit.frequency_per_week) * 100))
@@ -360,8 +400,8 @@ export function Habitos() {
                             return (
                               <React.Fragment key={habit.id}>
                                 {/* @ts-ignore */}
-                                <Draggable draggableId={habit.id} index={globalIndex}>
-                                  {(provided, snapshot) => (
+                                <Draggable draggableId={habit.id} index={index}>
+                                {(provided, snapshot) => (
                                   <tr 
                                     ref={provided.innerRef}
                                     {...provided.draggableProps}
@@ -371,11 +411,11 @@ export function Habitos() {
                                     )}
                                     style={{ display: snapshot.isDragging ? 'table' : '', ...provided.draggableProps.style }}
                                   >
-                                    <td className="p-4 md:p-6 pl-6 md:pl-8 relative">
-                                      <div className="flex items-center gap-3 md:gap-4 relative group-hover:-ml-4 transition-all">
+                                    <td className="p-4 md:p-6 pl-2 md:pl-4 relative">
+                                      <div className="flex items-center gap-2 relative">
                                         <div 
                                           {...provided.dragHandleProps} 
-                                          className="text-surface-border hover:text-text-muted cursor-grab active:cursor-grabbing p-1 opacity-0 group-hover:opacity-100 transition-opacity absolute -left-6 md:-left-8"
+                                          className="text-surface-border hover:text-text-muted cursor-grab active:cursor-grabbing p-1 opacity-50 hover:opacity-100 transition-opacity flex-shrink-0"
                                         >
                                           <GripVertical className="w-4 h-4" />
                                         </div>
@@ -420,7 +460,7 @@ export function Habitos() {
                                         </td>
                                       );
                                     })}
-
+  
                                     <td className="p-4 md:p-6 text-center">
                                       <div className="flex flex-col items-center gap-1">
                                         <span className={cn(
@@ -437,18 +477,18 @@ export function Habitos() {
         
                                     <td className="p-2 md:p-4 w-1"></td>
                                   </tr>
-                                  )}
-                                </Draggable>
+                                )}
+                              </Draggable>
                               </React.Fragment>
                             );
                           })}
-                        </React.Fragment>
-                      );
-                    })}
-                    {provided.placeholder}
-                  </tbody>
-                )}
-              </Droppable>
+                          {provided.placeholder}
+                        </tbody>
+                      )}
+                    </Droppable>
+                  </React.Fragment>
+                );
+              })}
             </DragDropContext>
           </table>
         </div>

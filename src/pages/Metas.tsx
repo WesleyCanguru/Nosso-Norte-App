@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Plus, 
   Trash2, 
@@ -18,11 +18,13 @@ import {
   Clock,
   MapPin,
   MessageSquare,
-  Tag
+  Tag,
+  GripVertical
 } from "lucide-react";
 import { useUser } from "@/hooks/useUser";
 import { useUserGoals } from "@/hooks/useUserGoals";
 import { useCycle } from "@/hooks/useCycle";
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "motion/react";
@@ -152,23 +154,57 @@ export function Metas() {
     }
   };
 
-  const [outcomes, setOutcomes] = useState<{id: string, title: string}[]>([]);
+  const [outcomes, setOutcomes] = useState<{id: string, title: string, position?: number}[]>([]);
   const [newOutcome, setNewOutcome] = useState('');
   const [editingOutcome, setEditingOutcome] = useState<{id: string, title: string} | null>(null);
 
   const fetchOutcomes = async () => {
     if (!user || !cycle) return;
     try {
+      // Trying to fetch position if it exists. If it fails due to column not existing, code should ideally catch but we'll try to just select it.
+      // Easiest is to select everything to avoid hardcoded columns if one might be missing, or just assume it'll be added by the user.
       const { data, error } = await supabase
         .from('cycle_outcomes')
-        .select('id, title')
+        .select('id, title, position')
         .eq('cycle_id', cycle.id)
-        .eq('user_name', user.name);
+        .eq('user_name', user.name)
+        .order('position', { ascending: true, nullsFirst: false });
       
-      if (error) throw error;
+      if (error) {
+         // Fallback if position doesn't exist yet
+         const fallback = await supabase.from('cycle_outcomes').select('id, title').eq('cycle_id', cycle.id).eq('user_name', user.name);
+         setOutcomes(fallback.data || []);
+         return;
+      }
       setOutcomes(data || []);
     } catch (e) {
       console.error("Erro ao buscar metas:", e);
+    }
+  };
+
+  const handleOutcomeDragEnd = async (result: DropResult) => {
+    if (!result.destination) return;
+
+    const sourceIndex = result.source.index;
+    const destIndex = result.destination.index;
+
+    if (sourceIndex === destIndex) return;
+
+    const items = [...outcomes];
+    const [reorderedItem] = items.splice(sourceIndex, 1);
+    items.splice(destIndex, 0, reorderedItem);
+
+    const updatedItems = items.map((t, index) => ({
+      ...t,
+      position: index
+    }));
+
+    setOutcomes(updatedItems);
+
+    for (let i = 0; i < updatedItems.length; i++) {
+        supabase.from('cycle_outcomes').update({ position: i }).eq('id', updatedItems[i].id).then(r => {
+           if(r.error) console.log("Se der erro de coluna inexistente, adicione a coluna position");
+        });
     }
   };
 
@@ -361,21 +397,45 @@ export function Metas() {
           </div>
         </header>
 
-        <div className="space-y-16">
-          {/* Metas Principais e seus Hábitos */}
-          {outcomes.map((goal, idx) => (
-            <div key={goal.id} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-              <div className="lg:col-span-4 sticky top-24">
-                <motion.div 
-                  initial={{ opacity: 0, x: -20 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
-                  className="bg-surface border border-surface-border rounded-[2rem] p-8 space-y-4 shadow-sm relative overflow-hidden group hover:border-primary/20 transition-all"
-                >
-                  <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity"><span className="text-7xl font-display font-bold italic">{idx + 1}</span></div>
-                  <div className="w-12 h-12 bg-primary/5 rounded-2xl flex items-center justify-center border border-primary/10 shadow-inner group-hover:scale-110 transition-transform">
-                    <Target className="w-5 h-5 text-primary" />
-                  </div>
+        <DragDropContext onDragEnd={handleOutcomeDragEnd}>
+          <Droppable droppableId="outcomes-list" direction="vertical">
+            {(provided) => (
+              <div 
+                className="space-y-16"
+                {...provided.droppableProps}
+                ref={provided.innerRef}
+              >
+                {/* Metas Principais e seus Hábitos */}
+                {outcomes.map((goal, idx) => (
+                  <React.Fragment key={goal.id}>
+                    {/* @ts-ignore */}
+                    <Draggable draggableId={goal.id} index={idx}>
+                    {(provided, snapshot) => (
+                      <div 
+                        className={cn(
+                          "grid grid-cols-1 lg:grid-cols-12 gap-8 items-start transition-all duration-300",
+                          snapshot.isDragging && "opacity-90 bg-background z-50 rounded-[2rem] shadow-2xl p-4 scale-[1.01]"
+                        )}
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                      >
+                        <div className="lg:col-span-4 sticky top-24">
+                          <motion.div 
+                            initial={{ opacity: 0, x: -20 }}
+                            whileInView={{ opacity: 1, x: 0 }}
+                            viewport={{ once: true }}
+                            className="bg-surface border border-surface-border rounded-[2rem] p-8 space-y-4 shadow-sm relative overflow-hidden group hover:border-primary/20 transition-all"
+                          >
+                            <div 
+                              {...provided.dragHandleProps}
+                              className="absolute top-4 left-4 p-2 text-surface-border hover:text-text-muted cursor-grab active:cursor-grabbing opacity-50 hover:opacity-100 transition-opacity z-20"
+                            >
+                              <GripVertical className="w-5 h-5" />
+                            </div>
+                            <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity"><span className="text-7xl font-display font-bold italic">{idx + 1}</span></div>
+                            <div className="w-12 h-12 bg-primary/5 rounded-2xl flex items-center justify-center border border-primary/10 shadow-inner group-hover:scale-110 transition-transform">
+                              <Target className="w-5 h-5 text-primary" />
+                            </div>
                   <div className="space-y-2 relative z-10 w-full">
                     <p className="text-[8px] font-bold text-primary uppercase tracking-[0.4em]">Meta Inegociável</p>
                     {editingOutcome?.id === goal.id ? (
@@ -460,8 +520,16 @@ export function Metas() {
                   </button>
                 </div>
               </div>
+                    </div>
+                  )}
+                </Draggable>
+              </React.Fragment>
+              ))}
+              {provided.placeholder}
             </div>
-          ))}
+          )}
+        </Droppable>
+      </DragDropContext>
 
           {/* Hábitos Independentes */}
           {habits.filter(h => !h.goal_id).length > 0 && (
@@ -500,7 +568,6 @@ export function Metas() {
                </div>
              </div>
           )}
-        </div>
       </section>
 
       <Modal isOpen={isCycleModalOpen} onClose={() => setIsCycleModalOpen(false)} title="Arquitetar Ciclo">

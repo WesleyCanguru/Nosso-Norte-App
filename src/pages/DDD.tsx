@@ -31,6 +31,8 @@ export function DDD() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [newTitle, setNewTitle] = useState({ quero_fazer: '', tem_que: '' });
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editTaskTitle, setEditTaskTitle] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -123,6 +125,22 @@ export function DDD() {
       setTasks(tasks.filter(t => t.id !== id));
     } catch (error) {
       console.error("Error deleting task:", error);
+    }
+  };
+
+  const saveTaskEdit = async (id: string) => {
+    if (!editTaskTitle.trim()) return;
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ title: editTaskTitle.trim() })
+        .eq('id', id);
+
+      if (error) throw error;
+      setTasks(tasks.map(t => t.id === id ? { ...t, title: editTaskTitle.trim() } : t));
+      setEditingTaskId(null);
+    } catch (error) {
+      console.error("Error updating task:", error);
     }
   };
 
@@ -251,9 +269,34 @@ export function DDD() {
                             >
                               <Circle className="w-5 h-5 md:w-6 md:h-6" />
                             </button>
-                            <span className="flex-1 text-[9px] md:text-[10px] font-bold text-secondary uppercase tracking-widest truncate group-hover:text-primary transition-colors">{task.title}</span>
+                            
+                            {editingTaskId === task.id ? (
+                              <div className="flex-1 flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={editTaskTitle}
+                                  onChange={(e) => setEditTaskTitle(e.target.value)}
+                                  onKeyDown={(e) => e.key === 'Enter' && saveTaskEdit(task.id)}
+                                  className="flex-1 bg-transparent border-b border-primary outline-none focus:border-primary text-[9px] md:text-[10px] font-bold text-secondary uppercase tracking-widest"
+                                  autoFocus
+                                />
+                                <button onClick={() => saveTaskEdit(task.id)} className="text-[9px] font-bold text-primary uppercase">Salvar</button>
+                                <button onClick={() => setEditingTaskId(null)} className="text-[9px] font-bold text-text-muted uppercase">Canc</button>
+                              </div>
+                            ) : (
+                              <span 
+                                className="flex-1 text-[9px] md:text-[10px] font-bold text-secondary uppercase tracking-widest truncate group-hover:text-primary transition-colors cursor-pointer"
+                                onClick={() => {
+                                  setEditingTaskId(task.id);
+                                  setEditTaskTitle(task.title);
+                                }}
+                              >
+                                {task.title}
+                              </span>
+                            )}
                             
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0">
+
                               <button 
                                 onClick={() => switchType(task.id, task.type)}
                                 title="Mover coluna"

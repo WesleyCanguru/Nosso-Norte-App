@@ -231,34 +231,45 @@ export function Estatisticas() {
             </div>
           </div>
 
-          <div className="grid grid-cols-4 md:grid-cols-12 gap-2 md:gap-3 h-48 items-end relative">
-            {/* 85% Indicator line across the whole container */}
-            <div className="absolute left-0 right-0 border-t border-dashed border-text-muted/30 pointer-events-none z-0" style={{ bottom: 'calc(85% + 24px)' }} />
-            
-            {weeklyData.map((w) => (
-              <div key={w.week} className="flex flex-col items-center justify-end gap-2 h-full group relative z-10">
-                <div 
-                  className={cn(
-                    "w-full rounded-t-lg transition-all duration-500 relative",
-                    w.isFuture ? "bg-surface-border/20" : w.score >= 85 ? "bg-primary" : "bg-accent/40",
-                    w.isCurrent && "ring-2 ring-primary ring-offset-4 ring-offset-surface"
-                  )}
-                  style={{ height: w.isFuture ? '10%' : `${Math.max(15, w.score)}%` }}
-                >
-                  {!w.isFuture && (
-                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-secondary opacity-0 group-hover:opacity-100 transition-opacity">
-                      {w.score}%
+          <div className="flex flex-col gap-2 h-48 md:h-56">
+            <div className="relative flex-1 flex gap-2 md:gap-3 items-end">
+              {/* 85% Indicator line across the whole container */}
+              <div className="absolute left-0 right-0 w-full border-t border-dashed border-text-muted/30 pointer-events-none z-0" style={{ bottom: '85%' }} />
+              
+              {weeklyData.map((w) => (
+                <div key={w.week} className="flex flex-col items-center justify-end gap-2 h-full group relative z-10 w-full">
+                  <div className="w-full relative h-full">
+                    <div 
+                      className={cn(
+                        "absolute bottom-0 left-0 right-0 w-full rounded-t-lg transition-all duration-500",
+                        w.isFuture ? "bg-surface-border/20" : w.score >= 85 ? "bg-primary" : "bg-accent/40",
+                        w.isCurrent && "ring-2 ring-primary ring-offset-4 ring-offset-surface"
+                      )}
+                      style={{ height: w.isFuture ? '10%' : `${Math.max(10, w.score)}%` }}
+                    >
+                      {!w.isFuture && (
+                        <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-secondary opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap bg-surface px-1.5 py-0.5 rounded shadow-sm border border-surface-border z-20">
+                          {w.score}%
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
-                <span className={cn(
-                  "text-[10px] font-bold",
-                  w.isCurrent ? "text-primary" : "text-text-muted"
-                )}>
-                  S{w.week}
-                </span>
-              </div>
-            ))}
+              ))}
+            </div>
+            
+            <div className="flex gap-2 md:gap-3 w-full justify-between px-[5%]">
+              {weeklyData.map((w) => (
+                <div key={w.week} className="w-full text-center">
+                  <span className={cn(
+                    "text-[10px] font-bold",
+                    w.isCurrent ? "text-primary" : "text-text-muted"
+                  )}>
+                    S{w.week}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="pt-4 border-t border-surface-border flex flex-wrap gap-4 md:gap-8">
