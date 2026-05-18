@@ -498,6 +498,11 @@ export function Metas() {
                         </div>
                       </div>
                       <h3 className="text-base font-display font-bold text-secondary uppercase tracking-tight truncate">{habit.name}</h3>
+                      {habit.motivation && (
+                        <p className="text-[10px] text-text-muted italic leading-relaxed line-clamp-2 pt-1 border-t border-surface-border/20 mt-1">
+                          "{habit.motivation}"
+                        </p>
+                      )}
                       <div className="flex items-center justify-between pt-3 border-t border-surface-border/30">
                         <span className="text-[8px] font-bold text-text-muted uppercase tracking-[0.2em]">{habit.category}</span>
                         <div className="flex items-center gap-1.5 text-[9px] font-bold text-primary"><Zap className="w-3 h-3" /> {habit.frequency_per_week}x/Semana</div>
@@ -556,6 +561,11 @@ export function Metas() {
                        </div>
                      </div>
                      <h3 className="text-base font-display font-bold text-secondary uppercase tracking-tight truncate">{habit.name}</h3>
+                     {habit.motivation && (
+                       <p className="text-[10px] text-text-muted italic leading-relaxed line-clamp-2 pt-1 border-t border-surface-border/20 mt-1">
+                         "{habit.motivation}"
+                       </p>
+                     )}
                      <div className="flex items-center justify-between pt-2 border-t border-surface-border/50">
                        <span className="text-[8px] font-bold text-text-muted uppercase tracking-[0.2em]">{habit.category}</span>
                        <div className="flex items-center gap-1 text-[8px] font-bold text-primary"><Zap className="w-2.5 h-2.5" /> {habit.frequency_per_week}x/Semana</div>
