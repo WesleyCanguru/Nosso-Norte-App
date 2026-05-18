@@ -6,24 +6,35 @@ import {
   Settings, 
   Coffee, 
   Brain,
-  Timer
+  Timer,
+  Save
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "motion/react";
+import { Modal } from "@/components/Modal";
+import { Button } from "@/components/Button";
 
 type Mode = 'foco' | 'curto' | 'longo';
 
-const MODES = {
-  foco: { title: 'Foco', minutes: 25, icon: Brain, color: 'bg-primary' },
-  curto: { title: 'Pausa curta', minutes: 5, icon: Coffee, color: 'bg-secondary' },
-  longo: { title: 'Pausa longa', minutes: 15, icon: Timer, color: 'bg-secondary' }
+const MODE_CONFIG = {
+  foco: { title: 'Foco', icon: Brain, color: 'bg-primary' },
+  curto: { title: 'Pausa curta', icon: Coffee, color: 'bg-secondary' },
+  longo: { title: 'Pausa longa', icon: Timer, color: 'bg-secondary' }
 };
 
 export function Pomodoro() {
   const [mode, setMode] = useState<Mode>('foco');
-  const [timeLeft, setTimeLeft] = useState(MODES.foco.minutes * 60);
+  const [durations, setDurations] = useState({
+    foco: 25,
+    curto: 5,
+    longo: 15
+  });
+  const [timeLeft, setTimeLeft] = useState(durations.foco * 60);
   const [isActive, setIsActive] = useState(false);
   const [completedSessions, setCompletedSessions] = useState(0);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [tempDurations, setTempDurations] = useState(durations);
+  
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const minutes = Math.floor(timeLeft / 60);
@@ -49,20 +60,30 @@ export function Pomodoro() {
     };
   }, [isActive, timeLeft, mode]);
 
+  // Update timeLeft when durations change if the timer is not active or if we reset
+  useEffect(() => {
+    if (!isActive) {
+      setTimeLeft(durations[mode] * 60);
+    }
+  }, [durations, mode, isActive]);
+
   const toggleTimer = () => setIsActive(!isActive);
 
   const resetTimer = () => {
     setIsActive(false);
-    setTimeLeft(MODES[mode].minutes * 60);
+    setTimeLeft(durations[mode] * 60);
   };
 
   const changeMode = (newMode: Mode) => {
     setMode(newMode);
     setIsActive(false);
-    setTimeLeft(MODES[newMode].minutes * 60);
+    setTimeLeft(durations[newMode] * 60);
   };
 
-  const currentModeInfo = MODES[mode];
+  const handleSaveSettings = () => {
+    setDurations(tempDurations);
+    setIsSettingsOpen(false);
+  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-16 px-4">
@@ -73,7 +94,13 @@ export function Pomodoro() {
             {completedSessions} sessões de foco concluídas
           </p>
         </div>
-        <button className="w-10 h-10 md:w-12 md:h-12 bg-surface hover:bg-surface-hover rounded-xl border border-surface-border flex items-center justify-center text-text-muted hover:text-primary transition-all">
+        <button 
+          onClick={() => {
+            setTempDurations(durations);
+            setIsSettingsOpen(true);
+          }}
+          className="w-10 h-10 md:w-12 md:h-12 bg-surface hover:bg-surface-hover rounded-xl border border-surface-border flex items-center justify-center text-text-muted hover:text-primary transition-all"
+        >
           <Settings className="w-5 h-5 md:w-5 md:h-5" />
         </button>
       </header>
@@ -87,8 +114,8 @@ export function Pomodoro() {
 
         {/* Mode Selector */}
         <div className="relative z-10 flex flex-wrap justify-center gap-1.5 md:gap-3">
-          {(Object.keys(MODES) as Mode[]).map((m) => {
-            const Icon = MODES[m].icon;
+          {(Object.keys(MODE_CONFIG) as Mode[]).map((m) => {
+            const Icon = MODE_CONFIG[m].icon;
             const active = mode === m;
             return (
               <button
@@ -102,7 +129,7 @@ export function Pomodoro() {
                 )}
               >
                 <Icon className="w-3 h-3 md:w-3.5 md:h-3.5" />
-                <span className="whitespace-nowrap">{MODES[m].title}</span>
+                <span className="whitespace-nowrap">{MODE_CONFIG[m].title}</span>
               </button>
             );
           })}
@@ -159,6 +186,53 @@ export function Pomodoro() {
           </button>
         </div>
       </div>
+
+      <Modal 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)} 
+        title="Configurações do Pomodoro"
+      >
+        <div className="space-y-6 pt-4">
+          <div className="grid grid-cols-1 gap-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Tempo de Foco (min)</label>
+              <input 
+                type="number" 
+                className="w-full bg-background border border-surface-border rounded-xl h-12 px-4 text-secondary font-bold focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+                value={tempDurations.foco}
+                onChange={(e) => setTempDurations({...tempDurations, foco: parseInt(e.target.value) || 0})}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Pausa Curta (min)</label>
+              <input 
+                type="number" 
+                className="w-full bg-background border border-surface-border rounded-xl h-12 px-4 text-secondary font-bold focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+                value={tempDurations.curto}
+                onChange={(e) => setTempDurations({...tempDurations, curto: parseInt(e.target.value) || 0})}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Pausa Longa (min)</label>
+              <input 
+                type="number" 
+                className="w-full bg-background border border-surface-border rounded-xl h-12 px-4 text-secondary font-bold focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+                value={tempDurations.longo}
+                onChange={(e) => setTempDurations({...tempDurations, longo: parseInt(e.target.value) || 0})}
+              />
+            </div>
+          </div>
+          
+          <Button 
+            className="w-full" 
+            onClick={handleSaveSettings}
+          >
+            <Save className="w-4 h-4 mr-2" />
+            Salvar Configurações
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }
+
