@@ -231,9 +231,12 @@ export function Estatisticas() {
             </div>
           </div>
 
-          <div className="grid grid-cols-4 md:grid-cols-12 gap-2 md:gap-3 h-48 items-end">
+          <div className="grid grid-cols-4 md:grid-cols-12 gap-2 md:gap-3 h-48 items-end relative">
+            {/* 85% Indicator line across the whole container */}
+            <div className="absolute left-0 right-0 border-t border-dashed border-text-muted/30 pointer-events-none z-0" style={{ bottom: 'calc(85% + 24px)' }} />
+            
             {weeklyData.map((w) => (
-              <div key={w.week} className="flex flex-col items-center gap-2 h-full group relative">
+              <div key={w.week} className="flex flex-col items-center justify-end gap-2 h-full group relative z-10">
                 <div 
                   className={cn(
                     "w-full rounded-t-lg transition-all duration-500 relative",
@@ -254,9 +257,6 @@ export function Estatisticas() {
                 )}>
                   S{w.week}
                 </span>
-
-                {/* 85% Indicator line hint */}
-                <div className="absolute bottom-[85%] left-0 right-0 border-t border-dashed border-text-muted/20 pointer-events-none group-first:block hidden" />
               </div>
             ))}
           </div>

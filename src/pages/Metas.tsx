@@ -154,6 +154,7 @@ export function Metas() {
 
   const [outcomes, setOutcomes] = useState<{id: string, title: string}[]>([]);
   const [newOutcome, setNewOutcome] = useState('');
+  const [editingOutcome, setEditingOutcome] = useState<{id: string, title: string} | null>(null);
 
   const fetchOutcomes = async () => {
     if (!user || !cycle) return;
@@ -211,6 +212,24 @@ export function Metas() {
     } catch (error: any) {
       console.error("Erro ao adicionar meta:", error);
       alert(`Houve um erro ao salvar a meta: ${error.message || 'Erro desconhecido'}`);
+    }
+  };
+
+  const updateOutcome = async () => {
+    if (!user || !cycle || !editingOutcome || !editingOutcome.title) return;
+    try {
+      const { error } = await supabase
+        .from('cycle_outcomes')
+        .update({ title: editingOutcome.title })
+        .eq('id', editingOutcome.id)
+        .eq('user_name', user.name);
+      
+      if (error) throw error;
+      setEditingOutcome(null);
+      fetchOutcomes();
+    } catch (error: any) {
+      console.error("Erro ao atualizar meta:", error);
+      alert(`Houve um erro ao atualizar a meta: ${error.message || 'Erro desconhecido'}`);
     }
   };
 
@@ -357,25 +376,47 @@ export function Metas() {
                   <div className="w-12 h-12 bg-primary/5 rounded-2xl flex items-center justify-center border border-primary/10 shadow-inner group-hover:scale-110 transition-transform">
                     <Target className="w-5 h-5 text-primary" />
                   </div>
-                  <div className="space-y-2 relative z-10">
+                  <div className="space-y-2 relative z-10 w-full">
                     <p className="text-[8px] font-bold text-primary uppercase tracking-[0.4em]">Meta Inegociável</p>
-                    <h3 className="text-xl md:text-2xl font-display font-bold text-secondary uppercase leading-none tracking-tight">{goal.title}</h3>
+                    {editingOutcome?.id === goal.id ? (
+                      <div className="flex flex-col gap-2">
+                        <input 
+                          type="text" 
+                          value={editingOutcome.title}
+                          onChange={(e) => setEditingOutcome({ ...editingOutcome, title: e.target.value })}
+                          className="w-full bg-transparent border-b border-primary focus:outline-none text-xl md:text-2xl font-display font-bold text-secondary tracking-tight"
+                          autoFocus
+                          onKeyDown={(e) => { if (e.key === 'Enter') updateOutcome(); }}
+                        />
+                        <div className="flex gap-2">
+                          <button onClick={updateOutcome} className="text-[9px] font-bold text-primary uppercase">Salvar</button>
+                          <button onClick={() => setEditingOutcome(null)} className="text-[9px] font-bold text-text-muted uppercase">Cancelar</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <h3 className="text-xl md:text-2xl font-display font-bold text-secondary uppercase leading-none tracking-tight">{goal.title}</h3>
+                    )}
                   </div>
                   <div className="pt-4 flex items-center justify-between border-t border-surface-border/50">
                     <span className="text-[8px] font-bold text-text-muted uppercase tracking-widest">
                       {habits.filter(h => h.goal_id === goal.id).length} Hábitos Vinculados
                     </span>
-                    <button 
-                      onClick={async () => { 
-                        if(confirm("Tem certeza que deseja excluir esta meta?")) {
-                          await supabase.from('cycle_outcomes').delete().eq('id', goal.id).eq('user_name', user.name); 
-                          fetchOutcomes(); 
-                        }
-                      }} 
-                      className="p-2 text-text-muted hover:text-red-500 transition-all"
-                    >
-                      <Trash2 className="w-4 h-4"/>
-                    </button>
+                    <div className="flex gap-2">
+                      <button onClick={() => setEditingOutcome(goal)} className="p-2 text-text-muted hover:text-primary transition-all">
+                        <Pencil className="w-4 h-4"/>
+                      </button>
+                      <button 
+                        onClick={async () => { 
+                          if(confirm("Tem certeza que deseja excluir esta meta?")) {
+                            await supabase.from('cycle_outcomes').delete().eq('id', goal.id).eq('user_name', user.name); 
+                            fetchOutcomes(); 
+                          }
+                        }} 
+                        className="p-2 text-text-muted hover:text-red-500 transition-all"
+                      >
+                        <Trash2 className="w-4 h-4"/>
+                      </button>
+                    </div>
                   </div>
                 </motion.div>
               </div>
