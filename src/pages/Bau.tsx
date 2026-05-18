@@ -9,6 +9,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useUser } from "@/hooks/useUser";
 import { supabase } from "@/lib/supabase";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 type SortOrder = 'desc' | 'asc';
 type TypeFilter = 'todas' | 'quero_fazer' | 'tem_que';
@@ -20,6 +21,7 @@ export function Bau() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('todas');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -152,7 +154,7 @@ export function Bau() {
                  <RotateCcw className="w-4 h-4 md:w-5 md:h-5" />
                </button>
                <button 
-                 onClick={() => deleteTask(task.id)}
+                 onClick={() => setDeleteTarget(task.id)}
                  title="Excluir definitivamente"
                  className="p-2 text-text-muted hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
                >
@@ -173,6 +175,16 @@ export function Bau() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) deleteTask(deleteTarget);
+        }}
+        title="Excluir Definitivamente"
+        description="Tem certeza que deseja excluir esta demanda definitivamente? Esta ação não pode ser desfeita."
+      />
     </div>
   );
 }

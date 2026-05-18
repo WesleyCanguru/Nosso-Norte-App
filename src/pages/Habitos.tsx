@@ -79,21 +79,26 @@ export function Habitos() {
     if (!user) return;
     setLoading(true);
     try {
-      const [habitsRes, goalsRes] = await Promise.all([
-        supabase
-          .from('habits')
-          .select('*')
-          .eq('user_name', user.name)
-          .order('position', { ascending: true }),
-        supabase
-          .from('cycle_outcomes')
-          .select('*')
-          .eq('user_name', user.name)
-          .order('created_at', { ascending: true })
-      ]);
+      const { data: habitsData } = await supabase
+        .from('habits')
+        .select('*')
+        .eq('user_name', user.name)
+        .order('position', { ascending: true });
+        
+      setHabits(habitsData || []);
 
-      setHabits(habitsRes.data || []);
-      setGoals(goalsRes.data || []);
+      const { data: goalsData, error: goalsError } = await supabase
+        .from('cycle_outcomes')
+        .select('*')
+        .eq('user_name', user.name)
+        .order('position', { ascending: true, nullsFirst: false });
+
+      if (goalsError) {
+         const { data: fallbackGoals } = await supabase.from('cycle_outcomes').select('*').eq('user_name', user.name).order('created_at', { ascending: true });
+         setGoals(fallbackGoals || []);
+      } else {
+         setGoals(goalsData || []);
+      }
 
       const start = format(weekDays[0], 'yyyy-MM-dd');
       const end = format(weekDays[6], 'yyyy-MM-dd');

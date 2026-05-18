@@ -14,6 +14,7 @@ import { useUser } from "@/hooks/useUser";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 type TaskType = 'quero_fazer' | 'tem_que';
 
@@ -33,6 +34,7 @@ export function DDD() {
   const [newTitle, setNewTitle] = useState({ quero_fazer: '', tem_que: '' });
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editTaskTitle, setEditTaskTitle] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -254,62 +256,76 @@ export function DDD() {
                           <div 
                             ref={provided.innerRef}
                             {...provided.draggableProps}
-                            className={cn(
-                              "bg-surface border border-surface-border rounded-xl md:rounded-2xl p-3 md:p-4 flex items-center gap-3 md:gap-4 group hover:border-primary/30 shadow-sm card-3d overflow-hidden",
-                              snapshot.isDragging ? "shadow-2xl shadow-primary/20 scale-105 z-50 border-primary" : "hover:shadow-2xl hover:shadow-primary/5 transition-all"
-                            )}
                             style={{...provided.draggableProps.style }}
+                            className="relative"
                           >
-                            <div {...provided.dragHandleProps} className="text-surface-border hover:text-text-muted transition-colors cursor-grab active:cursor-grabbing p-1 -ml-2 rounded-lg">
-                              <GripVertical className="w-4 h-4" />
-                            </div>
-                            <button 
-                              onClick={() => toggleTask(task.id, task.completed)}
-                              className="text-text-muted hover:text-primary transition-all flex-shrink-0 transform hover:scale-110 active:scale-90"
+                            <motion.div
+                              drag="x"
+                              dragConstraints={{ left: 0, right: 0 }}
+                              dragElastic={{ left: 0.5, right: 0 }}
+                              onDragEnd={(e, info) => {
+                                if (info.offset.x < -80) {
+                                  setDeleteTarget(task.id);
+                                }
+                              }}
+                              className={cn(
+                                "bg-surface border border-surface-border rounded-xl md:rounded-2xl p-3 md:p-4 flex items-center gap-3 md:gap-4 group hover:border-primary/30 shadow-sm card-3d overflow-hidden relative z-10",
+                                snapshot.isDragging ? "shadow-2xl shadow-primary/20 scale-105 z-50 border-primary" : "hover:shadow-2xl hover:shadow-primary/5 transition-all"
+                              )}
                             >
-                              <Circle className="w-5 h-5 md:w-6 md:h-6" />
-                            </button>
-                            
-                            {editingTaskId === task.id ? (
-                              <div className="flex-1 flex items-center gap-2">
-                                <input
-                                  type="text"
-                                  value={editTaskTitle}
-                                  onChange={(e) => setEditTaskTitle(e.target.value)}
-                                  onKeyDown={(e) => e.key === 'Enter' && saveTaskEdit(task.id)}
-                                  className="flex-1 bg-transparent border-b border-primary outline-none focus:border-primary text-[9px] md:text-[10px] font-bold text-secondary uppercase tracking-widest"
-                                  autoFocus
-                                />
-                                <button onClick={() => saveTaskEdit(task.id)} className="text-[9px] font-bold text-primary uppercase">Salvar</button>
-                                <button onClick={() => setEditingTaskId(null)} className="text-[9px] font-bold text-text-muted uppercase">Canc</button>
+                              <div {...provided.dragHandleProps} className="text-surface-border hover:text-text-muted transition-colors cursor-grab active:cursor-grabbing p-1 -ml-2 rounded-lg">
+                                <GripVertical className="w-4 h-4" />
                               </div>
-                            ) : (
-                              <span 
-                                className="flex-1 text-[9px] md:text-[10px] font-bold text-secondary uppercase tracking-widest truncate group-hover:text-primary transition-colors cursor-pointer"
-                                onClick={() => {
-                                  setEditingTaskId(task.id);
-                                  setEditTaskTitle(task.title);
-                                }}
-                              >
-                                {task.title}
-                              </span>
-                            )}
-                            
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0">
-
                               <button 
-                                onClick={() => switchType(task.id, task.type)}
-                                title="Mover coluna"
-                                className="p-1.5 md:p-2 text-text-muted hover:text-primary hover:bg-primary/5 rounded-lg transition-all"
+                                onClick={() => toggleTask(task.id, task.completed)}
+                                className="text-text-muted hover:text-primary transition-all flex-shrink-0 transform hover:scale-110 active:scale-90"
                               >
-                                <ArrowLeftRight className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                                <Circle className="w-5 h-5 md:w-6 md:h-6" />
                               </button>
-                              <button 
-                                onClick={() => deleteTask(task.id)}
-                                className="p-1.5 md:p-2 text-text-muted hover:text-accent hover:bg-accent/10 rounded-lg transition-all"
-                              >
-                                <Trash2 className="w-3 h-3 md:w-3.5 md:h-3.5" />
-                              </button>
+                              
+                              {editingTaskId === task.id ? (
+                                <div className="flex-1 flex items-center gap-2">
+                                  <input
+                                    type="text"
+                                    value={editTaskTitle}
+                                    onChange={(e) => setEditTaskTitle(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && saveTaskEdit(task.id)}
+                                    className="flex-1 bg-transparent border-b border-primary outline-none focus:border-primary text-[9px] md:text-[10px] font-bold text-secondary uppercase tracking-widest"
+                                    autoFocus
+                                  />
+                                  <button onClick={() => saveTaskEdit(task.id)} className="text-[9px] font-bold text-primary uppercase">Salvar</button>
+                                  <button onClick={() => setEditingTaskId(null)} className="text-[9px] font-bold text-text-muted uppercase">Canc</button>
+                                </div>
+                              ) : (
+                                <span 
+                                  className="flex-1 text-[9px] md:text-[10px] font-bold text-secondary uppercase tracking-widest truncate group-hover:text-primary transition-colors cursor-pointer"
+                                  onClick={() => {
+                                    setEditingTaskId(task.id);
+                                    setEditTaskTitle(task.title);
+                                  }}
+                                >
+                                  {task.title}
+                                </span>
+                              )}
+                              
+                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0">
+                                <button 
+                                  onClick={() => switchType(task.id, task.type)}
+                                  title="Mover coluna"
+                                  className="p-1.5 md:p-2 text-text-muted hover:text-primary hover:bg-primary/5 rounded-lg transition-all"
+                                >
+                                  <ArrowLeftRight className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                                </button>
+                                <button 
+                                  onClick={() => setDeleteTarget(task.id)}
+                                  className="p-1.5 md:p-2 text-text-muted hover:text-accent hover:bg-accent/10 rounded-lg transition-all"
+                                >
+                                  <Trash2 className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                                </button>
+                              </div>
+                            </motion.div>
+                            <div className="absolute inset-y-0 right-0 w-24 bg-red-500 rounded-xl md:rounded-2xl flex items-center justify-end px-6 z-0">
+                               <Trash2 className="w-5 h-5 text-white" />
                             </div>
                           </div>
                           )}
@@ -366,6 +382,16 @@ export function DDD() {
           )}
         </div>
       </DragDropContext>
+
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) deleteTask(deleteTarget);
+        }}
+        title="Excluir Demanda"
+        description="Tem certeza que deseja excluir esta demanda? Esta ação não pode ser desfeita."
+      />
       </div>
     );
 }

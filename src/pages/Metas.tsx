@@ -32,6 +32,7 @@ import { Modal } from "@/components/Modal";
 import { Button } from "@/components/Button";
 import { format, parseISO, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 type Habit = {
   id: string;
@@ -80,6 +81,7 @@ export function Metas() {
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [isCycleModalOpen, setIsCycleModalOpen] = useState(false);
   const [newCycleStartDate, setNewCycleStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string, type: 'habit' | 'outcome' } | null>(null);
 
   // Form State
   const [formData, setFormData] = useState<Partial<Habit>>({
@@ -466,12 +468,7 @@ export function Metas() {
                         <Pencil className="w-4 h-4"/>
                       </button>
                       <button 
-                        onClick={async () => { 
-                          if(confirm("Tem certeza que deseja excluir esta meta?")) {
-                            await supabase.from('cycle_outcomes').delete().eq('id', goal.id).eq('user_name', user.name); 
-                            fetchOutcomes(); 
-                          }
-                        }} 
+                        onClick={() => setDeleteTarget({ id: goal.id, type: 'outcome' })} 
                         className="p-2 text-text-muted hover:text-red-500 transition-all"
                       >
                         <Trash2 className="w-4 h-4"/>
@@ -497,7 +494,7 @@ export function Metas() {
                         </div>
                         <div className="flex gap-2">
                           <button onClick={() => handleEdit(habit)} className="p-2 bg-surface border border-surface-border rounded-lg text-text-muted hover:text-primary transition-all"><Pencil className="w-3 h-3"/></button>
-                          <button onClick={() => deleteHabit(habit.id)} className="p-2 bg-surface border border-surface-border rounded-lg text-text-muted hover:text-red-500 transition-all"><Trash2 className="w-3 h-3"/></button>
+                          <button onClick={() => setDeleteTarget({ id: habit.id, type: 'habit' })} className="p-2 bg-surface border border-surface-border rounded-lg text-text-muted hover:text-red-500 transition-all"><Trash2 className="w-3 h-3"/></button>
                         </div>
                       </div>
                       <h3 className="text-base font-display font-bold text-secondary uppercase tracking-tight truncate">{habit.name}</h3>
@@ -555,7 +552,7 @@ export function Metas() {
                        </div>
                        <div className="flex gap-1.5">
                          <button onClick={() => handleEdit(habit)} className="p-1.5 text-text-muted hover:text-primary transition-all"><Pencil className="w-3 h-3"/></button>
-                         <button onClick={() => deleteHabit(habit.id)} className="p-1.5 text-text-muted hover:text-red-500 transition-all"><Trash2 className="w-3 h-3"/></button>
+                         <button onClick={() => setDeleteTarget({ id: habit.id, type: 'habit' })} className="p-1.5 text-text-muted hover:text-red-500 transition-all"><Trash2 className="w-3 h-3"/></button>
                        </div>
                      </div>
                      <h3 className="text-base font-display font-bold text-secondary uppercase tracking-tight truncate">{habit.name}</h3>
@@ -686,6 +683,21 @@ export function Metas() {
           <Button onClick={saveHabit} className="w-full py-8 text-[10px] font-bold rounded-2xl shadow-xl transition-all bg-secondary text-white uppercase tracking-[0.3em] hover:scale-[1.01] active:scale-95">Consolidar Hábito</Button>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={async () => {
+          if (deleteTarget?.type === 'outcome') {
+             await supabase.from('cycle_outcomes').delete().eq('id', deleteTarget.id).eq('user_name', user.name); 
+             fetchOutcomes(); 
+          } else if (deleteTarget?.type === 'habit') {
+             await deleteHabit(deleteTarget.id);
+          }
+        }}
+        title={`Excluir ${deleteTarget?.type === 'outcome' ? 'Meta' : 'Hábito'}`}
+        description={`Tem certeza que deseja excluir est${deleteTarget?.type === 'outcome' ? 'a' : 'e'} ${deleteTarget?.type === 'outcome' ? 'meta' : 'hábito'}? Esta ação não pode ser desfeita.`}
+      />
     </div>
   );
 }
