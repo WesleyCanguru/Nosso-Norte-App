@@ -9,7 +9,8 @@ import {
   Target,
   Calendar,
   Clock,
-  Sparkles
+  Sparkles,
+  Edit2
 } from "lucide-react";
 import { useUser } from "@/hooks/useUser";
 import { useCycle } from "@/hooks/useCycle";
@@ -24,12 +25,14 @@ import { Modal } from "@/components/Modal";
 export function Dashboard() {
   const navigate = useNavigate();
   const user = useUser();
-  const { cycle } = useCycle();
+  const { cycle, updateCycleDates } = useCycle();
   const [loading, setLoading] = useState(true);
   const [todayHabits, setTodayHabits] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [outcomes, setOutcomes] = useState<any[]>([]);
   const [selectedGoal, setSelectedGoal] = useState<any>(null);
+  const [isEditingCycleDate, setIsEditingCycleDate] = useState(false);
+  const [newStartDate, setNewStartDate] = useState("");
   const [stats, setStats] = useState({
     habitsDone: 0,
     totalHabits: 0,
@@ -121,6 +124,23 @@ export function Dashboard() {
       console.error("Error fetching dashboard data:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (cycle && isEditingCycleDate && !newStartDate) {
+      setNewStartDate(cycle.start_date);
+    }
+  }, [isEditingCycleDate, cycle]);
+
+  const handleSaveCycleDate = async () => {
+    if (!newStartDate) return;
+    try {
+      await updateCycleDates(newStartDate);
+      setIsEditingCycleDate(false);
+    } catch (e) {
+      console.error(e);
+      alert('Erro ao atualizar data do ciclo.');
     }
   };
 
@@ -240,9 +260,18 @@ export function Dashboard() {
                         className="h-full bg-primary shadow-[0_0_10px_rgba(45,79,60,0.5)]"
                       />
                     </div>
-                    <div className="flex justify-between text-[7px] font-bold text-white/30 tracking-[0.2em] uppercase">
-                      <span>Início: {format(parseISO(cycle.start_date), "dd/MM/yy")}</span>
-                      <span>Fim: {format(parseISO(cycle.end_date || cycle.start_date), "dd/MM/yy")}</span>
+                    <div className="flex justify-between text-[7px] font-bold text-white/30 tracking-[0.2em] uppercase items-center">
+                      <div className="flex gap-4">
+                        <span>Início: {format(parseISO(cycle.start_date), "dd/MM/yy")}</span>
+                        <span>Fim: {format(parseISO(cycle.end_date || cycle.start_date), "dd/MM/yy")}</span>
+                      </div>
+                      <button 
+                        onClick={() => setIsEditingCycleDate(true)}
+                        className="text-white/50 hover:text-white transition-colors"
+                        title="Editar data de início do ciclo"
+                      >
+                        <Edit2 className="w-3 h-3" />
+                      </button>
                     </div>
                   </div>
                 )}
@@ -568,6 +597,46 @@ export function Dashboard() {
                   className="w-full py-5 bg-secondary text-white rounded-xl font-bold uppercase text-[9px] tracking-[0.3em] hover:bg-secondary/90 transition-colors shadow-lg"
                 >
                   Fechar Visualização
+                </button>
+              </div>
+            </div>
+          </Modal>
+        )}
+
+        {isEditingCycleDate && (
+          <Modal 
+            isOpen={isEditingCycleDate} 
+            onClose={() => setIsEditingCycleDate(false)} 
+            title="Editar Ciclo"
+          >
+            <div className="space-y-6 pt-2">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-text-muted uppercase tracking-[0.2em] ml-2">Nova Data de Início</label>
+                  <input
+                    type="date"
+                    value={newStartDate}
+                    onChange={(e) => setNewStartDate(e.target.value)}
+                    className="w-full bg-background border border-surface-border rounded-xl px-4 py-4 text-sm focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all font-medium"
+                  />
+                  <p className="text-[9px] text-text-muted px-2 py-1">
+                    A data de término será recalculada automaticamente para 12 semanas a partir desta data.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setIsEditingCycleDate(false)}
+                  className="flex-1 py-4 bg-background border border-surface-border rounded-xl text-[10px] font-bold uppercase tracking-widest text-text-muted hover:bg-surface-hover transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSaveCycleDate}
+                  disabled={!newStartDate}
+                  className="flex-1 py-4 bg-primary text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl shadow-primary/20 disabled:opacity-50 disabled:hover:scale-100"
+                >
+                  Salvar
                 </button>
               </div>
             </div>

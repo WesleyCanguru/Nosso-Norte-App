@@ -75,5 +75,28 @@ export function useCycle() {
     }
   };
 
-  return { cycle, startNewCycle, loading, refresh: fetchCycle };
+  const updateCycleDates = async (newStartDate: string) => {
+    if (!user || !cycle) return;
+
+    const start = parseISO(newStartDate);
+    const end = addDays(start, 12 * 7); // 12 weeks
+    const endDate = format(end, 'yyyy-MM-dd');
+
+    try {
+      const { data, error } = await supabase
+        .from('cycles')
+        .update({ start_date: newStartDate, end_date: endDate })
+        .eq('id', cycle.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      setCycle(data);
+    } catch (e) {
+      console.error("Failed to update cycle dates", e);
+      throw e;
+    }
+  };
+
+  return { cycle, startNewCycle, updateCycleDates, loading, refresh: fetchCycle };
 }
